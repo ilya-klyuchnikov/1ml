@@ -5,7 +5,7 @@
 type pos = {file : string; line : int; column : int}
 type region = {left : pos; right : pos}
 
-type ('a, 'b) phrase = {at : region; it : 'a}
+type 'a phrase = {at : region; it : 'a}
 
 exception Error of region * string
 

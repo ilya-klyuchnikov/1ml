@@ -5,7 +5,7 @@
 type pos = {file : string; line : int; column : int}
 type region = {left : pos; right : pos}
 
-type ('a, 'b) phrase = {at : region; it : 'a}
+type 'a phrase = {at : region; it : 'a}
 
 exception Error of region * string
 
@@ -19,12 +19,12 @@ val before : region -> region
 val after : region -> region
 val span : region list -> region
 
-val (@@) : 'a -> region -> ('a, 'b) phrase
-val (@@@) : 'a -> region list -> ('a, 'b) phrase
-val dup : ('a, 'b) phrase -> ('a, 'b) phrase
+val (@@) : 'a -> region -> 'a phrase
+val (@@@) : 'a -> region list -> 'a phrase
+val dup : 'a phrase -> 'a phrase
 
-val at : ('a, 'b) phrase -> region
-val it : ('a, 'b) phrase -> 'a
+val at : 'a phrase -> region
+val it : 'a phrase -> 'a
 
 val warn : region -> string -> unit
 val error : region -> string -> 'a  (* raises Error *)
