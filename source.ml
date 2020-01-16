@@ -5,11 +5,7 @@
 type pos = {file : string; line : int; column : int}
 type region = {left : pos; right : pos}
 
-type ('a, 'b) phrase =
-  { at : region;
-    it : 'a;
-    mutable sem : 'b option
-  }
+type ('a, 'b) phrase = {at : region; it : 'a}
 
 exception Error of region * string
 
@@ -37,17 +33,12 @@ and span' left right regions = match regions with
 
 (* Phrases *)
 
-let (@@) phrase' region = {at = region; it = phrase'; sem = None}
+let (@@) phrase' region = {at = region; it = phrase'}
 let (@@@) phrase' regions = phrase'@@(span regions)
-let (<~) phrase sem = assert (phrase.sem = None); phrase.sem <- Some sem; sem
 let dup phrase = phrase.it@@phrase.at
 
 let at phrase = phrase.at
 let it phrase = phrase.it
-let sem phrase = match phrase.sem with
-  | Some x -> x
-  | _ -> raise (Invalid_argument "sem")
-
 
 (* Errors *)
 

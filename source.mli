@@ -5,11 +5,7 @@
 type pos = {file : string; line : int; column : int}
 type region = {left : pos; right : pos}
 
-type ('a, 'b) phrase =
-  { at : region;
-    it : 'a;
-    mutable sem : 'b option
-  }
+type ('a, 'b) phrase = {at : region; it : 'a}
 
 exception Error of region * string
 
@@ -25,12 +21,10 @@ val span : region list -> region
 
 val (@@) : 'a -> region -> ('a, 'b) phrase
 val (@@@) : 'a -> region list -> ('a, 'b) phrase
-val (<~) : ('a, 'b) phrase -> 'b -> 'b
 val dup : ('a, 'b) phrase -> ('a, 'b) phrase
 
 val at : ('a, 'b) phrase -> region
 val it : ('a, 'b) phrase -> 'a
-val sem : ('a, 'b) phrase -> 'b
 
 val warn : region -> string -> unit
 val error : region -> string -> 'a  (* raises Error *)
