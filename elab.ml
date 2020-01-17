@@ -217,12 +217,12 @@ let rec elab_typ env typ l =
   | EL.PathT(exp) ->
     (match elab_pathexp env exp l with
     | TypT(s) -> s
-    | _ -> error typ.at "expression does not denote a type"
+    | _ -> error (EL.string_of_typ typ) "expression does not denote a type"
     )
   | EL.PrimT(n) ->
     (match Prim.typ_of_string n with
     | Some t -> ExT("_", ProdK[], PrimT(t))
-    | None -> error typ.at "unknown primitive type"
+    | None -> error (EL.string_of_typ typ) "unknown primitive type"
     )
   | EL.StrT(dec) -> elab_dec env dec l
   | EL.FunT(var, typ1, typ2, eff) ->
@@ -257,7 +257,7 @@ trace_debug (lazy ("[WithT] s1 = " ^ string_of_norm_extyp (ExT(a1, k1, t1))));
 trace_debug (lazy ("[WithT] ls = " ^ String.concat "." ls));
 trace_debug (lazy ("[WithT] t2 = " ^ string_of_norm_typ t2));
     let t1_ls, k1_ls, k1', tf = try refine_typ k1 t1 ls with Not_found ->
-      error typ.at
+      error (EL.string_of_typ typ)
         ("path " ^ quote (String.concat "." ls) ^ " unbound or not a type") in
 trace_debug (lazy ("[WithT] t1_ls = " ^ string_of_norm_typ t1_ls));
 trace_debug (lazy ("[WithT] k1_ls = " ^ string_of_kind k1_ls));
@@ -270,7 +270,7 @@ trace_debug (lazy ("[WithT] ta' = " ^ string_of_norm_typ (subst_typ [a1, ta] t1_
         let _ = sub_typ t2 (subst_typ [a1, ta] t1_ls) in
         ta
       with Sub e ->
-        error exp.at
+        error (EL.string_of_exp exp)
           ("refinement does not match respective type: " ^
             string_of_sub_error e) in
 trace_debug (lazy ("[WithT] s = " ^ string_of_norm_extyp (ExT(a1, k1, t1))));
@@ -290,7 +290,7 @@ and elab_dec env dec l =
     let ExT(a, k, t) as s = elab_typ env typ l in
     (match t with
     | StrT _ -> s
-    | _ -> error dec.at "included type is not a structure"
+    | _ -> error (EL.string_of_dec dec) "included type is not a structure"
     )
   | EL.EmptyD ->
     ExT("_", ProdK[], StrT[])
@@ -315,12 +315,12 @@ trace_debug (lazy ("[SeqD] t2 = " ^ string_of_norm_typ (StrT(tr2))));
 trace_debug (lazy ("[SeqD] s = " ^ string_of_norm_extyp (ExT(a, k, StrT(tr)))));
           ExT(a, k, StrT(tr))
         | ls ->
-          error dec.at ("multiple declarations for " ^
+          error (EL.string_of_dec dec) ("multiple declarations for " ^
             String.concat ", " (List.map (fun (l, _) -> quote l) ls))
         )
-      | _ -> error dec.at "internal SeqD2"
+      | _ -> error (EL.string_of_dec dec) "internal SeqD2"
       )
-    | _ -> error dec.at "internal SeqD1"
+    | _ -> error (EL.string_of_dec dec) "internal SeqD1"
     )
 
 and elab_pathexp env exp l =
@@ -328,9 +328,9 @@ and elab_pathexp env exp l =
   let ExT(a, k, t), p, _ = elab_exp env exp l in
 trace_debug (lazy ("[ExpP] s = " ^ string_of_norm_extyp (ExT(a, k, t))));
   if p = Impure then
-    error exp.at "impure path expression";
+    error (EL.string_of_exp exp) "impure path expression";
   if occurs_typ a t then
-    error exp.at
+    error (EL.string_of_exp exp)
       ("local type(s) " ^ quote a ^ ":" ^ string_of_kind k ^ " escape scope")
   else
     t
@@ -340,7 +340,7 @@ trace_debug (lazy ("[ExpP] s = " ^ string_of_norm_extyp (ExT(a, k, t))));
 
 and lookup_var env var =
   try List.assoc var.it env with Not_found ->
-    error var.at ("unbound identifier " ^ quote var.it)
+    error var.it ("unbound identifier " ^ quote var.it)
 
 and elab_prim_typ = function
   | Prim.VarT -> VarT("a", BaseK)
@@ -394,7 +394,7 @@ trace_debug (lazy ("[PackE] t = " ^ string_of_norm_typ (lookup_var env var)));
 trace_debug (lazy ("[PackE] s = " ^ string_of_extyp s));
     let f =
       try sub_extyp (ExT("_", ProdK[], lookup_var env var)) s with Sub e ->
-        error exp.at
+        error (EL.string_of_exp exp)
           ("packaged type does not match annotation: " ^ string_of_sub_error e)
     in ExT("_", ProdK[], PackT(s)), Pure, IL.AppE(f, IL.VarE(var.it))
   | EL.IfE(var, exp1, exp2, typ) ->
@@ -403,13 +403,13 @@ trace_debug (lazy ("[PackE] s = " ^ string_of_extyp s));
       let s1, p1, e1 = elab_exp env exp1 l in
       let s2, p2, e2 = elab_exp env exp2 l in
       let s = elab_typ env typ l in
-      let f1 = try sub_extyp s1 s with Sub e -> error exp1.at
+      let f1 = try sub_extyp s1 s with Sub e -> error (EL.string_of_exp exp1)
         ("branch type does not match annotation: " ^ string_of_sub_error e) in
-      let f2 = try sub_extyp s2 s with Sub e -> error exp2.at
+      let f2 = try sub_extyp s2 s with Sub e -> error (EL.string_of_exp exp2)
         ("branch type does not match annotation: " ^ string_of_sub_error e) in
       s, join_eff p1 p2,
       IL.IfE(IL.VarE(var.it), IL.AppE(f1, e1), IL.AppE(f2, e2))
-    | _ -> error var.at "condition is not Boolean"
+    | _ -> error var.it "condition is not Boolean"
     )
   | EL.DotE(exp1, var) ->
     (match elab_exp env exp1 l with
@@ -417,11 +417,11 @@ trace_debug (lazy ("[PackE] s = " ^ string_of_extyp s));
 trace_debug (lazy ("[DotE] l = " ^ var.it));
 trace_debug (lazy ("[DotE] s = " ^ string_of_extyp (ExT(a, k, StrT(tr)))));
       let t = try List.assoc var.it tr with Not_found ->
-        error exp.at ("field " ^ quote var.it ^ " unbound in expression") in
+        error (EL.string_of_exp exp) ("field " ^ quote var.it ^ " unbound in expression") in
       let s = ExT(a, k, t) in
       s, p, IL.OpenE(e1, a, "x",
         IL.PackE(IL.VarT(a), IL.DotE(IL.VarE("x"), var.it), erase_extyp s))
-    | _ -> error exp1.at "expression is not a structure"
+    | _ -> error (EL.string_of_exp exp1) "expression is not a structure"
     )
   | EL.AppE(var1, var2) ->
     (match lookup_var env var1 with
@@ -430,13 +430,13 @@ trace_debug (lazy ("[AppE] s1 = " ^ string_of_norm_extyp (ExT(a, k, t1))));
 trace_debug (lazy ("[AppE] t2 = " ^ string_of_norm_typ (lookup_var env var2)));
       let t, f =
         try match_typ (lookup_var env var2) (ExT(a, k, t1)) with Sub e ->
-          error var2.at
+          error var2.it
             ("argument type does not match function: " ^ string_of_sub_error e)
       in
       subst_extyp [a, t] s, p,
       IL.AppE(IL.InstE(IL.VarE(var1.it), erase_typ t),
         IL.AppE(f, IL.VarE(var2.it)))
-    | _ -> error var1.at "expression is not a function"
+    | _ -> error var1.it "expression is not a function"
     )
   | EL.UnpackE(var, typ) ->
     (match lookup_var env var with
@@ -444,13 +444,13 @@ trace_debug (lazy ("[AppE] t2 = " ^ string_of_norm_typ (lookup_var env var2)));
       let ExT(a, k, t) as s2 = elab_typ env typ l in
 trace_debug (lazy ("[UnpackE] s1 = " ^ string_of_norm_extyp s1));
 trace_debug (lazy ("[UnpackE] s2 = " ^ string_of_norm_extyp s2));
-      let f = try sub_extyp s1 s2 with Sub e -> error exp.at
+      let f = try sub_extyp s1 s2 with Sub e -> error (EL.string_of_exp exp)
         ("package type does not match annotation: " ^ string_of_sub_error e) in
       let a' = freshen_var [t] l in
 trace_debug (lazy ("[UnpackE] s2' = " ^ string_of_norm_extyp (ExT(a', k, subst_typ [a, VarT(a', k)] t))));
       ExT(a', k, subst_typ [a, VarT(a', k)] t),
       Impure, IL.AppE(f, IL.VarE(var.it))
-    | _ -> error var.at "expression is not a package"
+    | _ -> error var.it "expression is not a package"
     )
 
 and elab_bind env bind l =
@@ -468,7 +468,7 @@ trace_debug (lazy ("[VarB] s = " ^ string_of_norm_extyp s));
     let ExT(a, k, t) as s, p, e = elab_exp env exp l in
     (match t with
     | StrT _ -> s, p, e
-    | _ -> error bind.at "expression is not a structure"
+    | _ -> error (EL.string_of_bind bind) "expression is not a structure"
     )
   | EL.EmptyB ->
     ExT("_", ProdK[], StrT[]), Pure, IL.StrE[]
@@ -513,9 +513,9 @@ trace_debug (lazy ("[SeqB] s = " ^ string_of_norm_extyp s));
             )
           )
         )
-      | _ -> error bind.at "internal SeqB2"
+      | _ -> error (EL.string_of_bind bind) "internal SeqB2"
       )
-    | _ -> error bind.at "internal SeqB1"
+    | _ -> error (EL.string_of_bind bind) "internal SeqB1"
     )
 
 

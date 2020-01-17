@@ -22,7 +22,7 @@ let at () =
 let ati i =
   positions_to_region (Parsing.rhs_start_pos i) (Parsing.rhs_end_pos i)
 
-let parse_error s = raise (Source.Error (Source.nowhere_region, s))
+let parse_error s = raise (Source.RegionError (Source.nowhere_region, s))
 %}
 
 %token TRUE FALSE HOLE PRIMITIVE
@@ -304,4 +304,3 @@ prog :
 ;
 
 %%
-  

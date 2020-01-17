@@ -7,7 +7,9 @@ type region = {left : pos; right : pos}
 
 type 'a phrase = {at : region; it : 'a}
 
-exception Error of region * string
+exception Error of string * string
+
+exception RegionError of region * string
 
 val nowhere_pos : pos
 val nowhere_region : region
@@ -21,4 +23,4 @@ val span : region list -> region
 
 val (@@) : 'a -> region -> 'a phrase
 
-val error : region -> string -> 'a  (* raises Error *)
+val error : string -> string -> 'a  (* raises Error *)

@@ -16,10 +16,10 @@ let convert_pos pos =
 
 let region lexbuf =
   let left = convert_pos (Lexing.lexeme_start_p lexbuf) in
-  let right = convert_pos (Lexing.lexeme_end_p lexbuf) in 
+  let right = convert_pos (Lexing.lexeme_end_p lexbuf) in
   {Source.left = left; Source.right = right}
 
-let error lexbuf m = raise (Source.Error (region lexbuf, m))
+let error lexbuf m = raise (Source.RegionError (region lexbuf, m))
 let error_nest start lexbuf m =
   lexbuf.Lexing.lex_start_p <- start;
   error lexbuf m

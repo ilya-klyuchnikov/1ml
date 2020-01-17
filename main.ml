@@ -23,11 +23,11 @@ let parse name source =
   let lexbuf = Lexing.from_string source in
   lexbuf.Lexing.lex_curr_p <-
     {lexbuf.Lexing.lex_curr_p with Lexing.pos_fname = name};
-  try Parser.prog Lexer.token lexbuf with Source.Error (region, s) ->
+  try Parser.prog Lexer.token lexbuf with Source.RegionError (region, s) ->
     let region' = if region <> Source.nowhere_region then region else
       {Source.left = Lexer.convert_pos lexbuf.Lexing.lex_start_p;
        Source.right = Lexer.convert_pos lexbuf.Lexing.lex_curr_p} in
-    raise (Source.Error (region', s))
+    raise (Source.RegionError (region', s))
 
 let env = ref []
 let state = ref []
@@ -85,9 +85,13 @@ let process file source =
         ) env' row
       in state := !state @ state'
     end
-  with Source.Error (at, s) ->
-    trace_phase "Error:";
-    prerr_endline (Source.string_of_region at ^ ": " ^ s)
+  with
+    | Source.RegionError (at, s) ->
+      trace_phase "Error:";
+      prerr_endline (Source.string_of_region at ^ ": " ^ s)
+    | Source.Error (at, s) ->
+      trace_phase "Error:";
+      prerr_endline (at ^ ": " ^ s)
 
 let num_files = ref 0
 let process_file file =

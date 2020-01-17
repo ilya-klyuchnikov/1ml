@@ -7,8 +7,9 @@ type region = {left : pos; right : pos}
 
 type 'a phrase = {at : region; it : 'a}
 
-exception Error of region * string
+exception Error of string * string
 
+exception RegionError of region * string
 
 (* Positions and regions *)
 
