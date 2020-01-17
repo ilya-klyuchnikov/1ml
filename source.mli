@@ -21,8 +21,4 @@ val span : region list -> region
 
 val (@@) : 'a -> region -> 'a phrase
 
-val at : 'a phrase -> region
-val it : 'a phrase -> 'a
-
 val error : region -> string -> 'a  (* raises Error *)
-val indent : string -> string

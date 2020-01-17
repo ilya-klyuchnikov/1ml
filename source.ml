@@ -35,25 +35,6 @@ and span' left right regions = match regions with
 
 let (@@) phrase' region = {at = region; it = phrase'}
 
-let at phrase = phrase.at
-let it phrase = phrase.it
-
 (* Errors *)
 
 let error at m = raise (Error (at, m))
-
-let rec count_newlines i s =
-  if i == String.length s then 0
-  else (if s.[i] == '\n' then 1 else 0) + count_newlines (i + 1) s
-let indent s =
-  let s' = Bytes.make (String.length s + 2 * count_newlines 0 s + 2) ' ' in
-  let i = ref 0 in
-  let i' = ref 2 in
-  while !i < String.length s do
-    let j =
-      try String.index_from s !i '\n' + 1 with Not_found -> String.length s in
-    String.blit s !i s' !i' (j - !i);
-    i' := !i' + (j - !i) + 2;
-    i := j
-  done;
-  Bytes.to_string s'
