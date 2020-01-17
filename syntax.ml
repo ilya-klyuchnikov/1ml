@@ -2,8 +2,6 @@
  * (c) 2014 Andreas Rossberg
  *)
 
-open Source
-
 type var = string
 
 type eff =
@@ -46,7 +44,7 @@ and bind =
 
 
 let var_counts = ref []
-let var s =
+let gen_var s =
   let count = try List.assoc s !var_counts with Not_found ->
     let count = ref 0 in var_counts := (s, count) :: !var_counts; count
   in incr count; s ^ "$" ^ string_of_int !count
@@ -84,7 +82,7 @@ and funE'(ps, e) =
   | p::ps' -> FunE(fst p, snd p, funE'(ps', e))
 
 let letE(b, e) =
-  let x' = var "let" in
+  let x' = gen_var "let" in
   let b2 = VarB(x', e) in
   DotE(StrE(SeqB(b, b2)), x')
 
@@ -99,7 +97,7 @@ let ifE(e1, e2, e3, t) =
   match e1 with
   | VarE(x) -> IfE(x, e2, e3, t)
   | _ ->
-    let x' = var "if" in
+    let x' = gen_var "if" in
     let e = IfE(x', e2, e3, t) in
     letE(VarB(x', e1), e)
 
@@ -114,14 +112,14 @@ let appE(e1, e2) =
   match e1, e2 with
   | VarE(x1), VarE(x2) -> AppE(x1, x2)
   | VarE(x1), _ ->
-    let x2' = var "app2" in
+    let x2' = gen_var "app2" in
     letE(VarB(x2', e2), AppE(x1, x2'))
   | _, VarE(x2) ->
-    let x1' = var "app1" in
+    let x1' = gen_var "app1" in
     letE(VarB(x1', e1), AppE(x1', x2))
   | _, _ ->
-    let x1' = var "app1" in
-    let x2' = var "app2" in
+    let x1' = gen_var "app1" in
+    let x2' = gen_var "app2" in
     let b1 = VarB(x1', e1) in
     let b2 = VarB(x2', e2) in
     let b = SeqB(b1, b2) in
@@ -131,18 +129,18 @@ let packE(e, t) =
   match e with
   | VarE(x) -> PackE(x, t)
   | _ ->
-    let x' = var "pack" in
+    let x' = gen_var "pack" in
     letE(VarB(x', e), PackE(x', t))
 
 let unpackE(e, t) =
   match e with
   | VarE(x) -> UnpackE(x, t)
   | _ ->
-    let x' = var "pack" in
+    let x' = gen_var "pack" in
     letE(VarB(x', e), UnpackE(x', t))
 
 let annotE(e, t) =
-  let x' = var "annot" in
+  let x' = gen_var "annot" in
   appE(FunE(x', t, VarE(x')), e)
 
 let sealE(e, t) =
