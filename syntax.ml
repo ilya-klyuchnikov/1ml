@@ -4,14 +4,14 @@
 
 open Source
 
-type var = (string, unit) phrase
+type var = string phrase
 
-type eff = (eff', unit) phrase
+type eff = eff' phrase
 and eff' =
   | Pure
   | Impure
 
-type typ = (typ', unit) phrase
+type typ = typ' phrase
 and typ' =
   | PathT of exp
   | PrimT of string
@@ -22,14 +22,14 @@ and typ' =
   | LikeT of exp
   | WithT of typ * var list * exp
 
-and dec = (dec', unit) phrase
+and dec = dec' phrase
 and dec' =
   | EmptyD
   | SeqD of dec * dec
   | VarD of var * typ
   | InclD of typ
 
-and exp = (exp', unit) phrase
+and exp = exp' phrase
 and exp' =
   | VarE of var
   | PrimE of Prim.const
@@ -42,7 +42,7 @@ and exp' =
   | AppE of var * var
   | UnpackE of var * typ
 
-and bind = (bind', unit) phrase
+and bind = bind' phrase
 and bind' =
   | EmptyB
   | SeqB of bind * bind
