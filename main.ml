@@ -5,6 +5,7 @@
 let name = "1ml"
 
 let trace_flag = ref false
+let ast_flag = ref false
 let dump_flag = ref false
 let check_flag = ref false
 let no_run_flag = ref true
@@ -14,7 +15,7 @@ let trace_phase name = if !trace_flag then print_endline ("-- " ^ name)
 let load file =
   let f = open_in file in
   let size = in_channel_length f in
-  let source = really_input_string f size in 
+  let source = really_input_string f size in
   close_in f;
   source
 
@@ -48,6 +49,9 @@ let process file source =
   try
     trace_phase "Parsing...";
     let prog = parse file source in
+    if !ast_flag then begin
+      print_endline (Syntax.string_of_exp prog)
+    end;
     trace_phase "Elaborating...";
     let sign, _, prog' = Elab.elab !env prog in
     if !check_flag then begin
@@ -103,6 +107,7 @@ let usage = "Usage: " ^ name ^ " [option] [file]"
 let argspec = Arg.align
 [
   "-c", Arg.Set check_flag, " check target program";
+  "-p", Arg.Set ast_flag, " show parse tree";
   "-r", Arg.Set no_run_flag, " do not run program";
   "-d", Arg.Set dump_flag, " dump types";
   "-v", Arg.Set trace_flag, " verbose output";
