@@ -4,15 +4,13 @@
 
 open Source
 
-type var = string phrase
+type var = string
 
-type eff = eff' phrase
-and eff' =
+type eff =
   | Pure
   | Impure
 
-type typ = typ' phrase
-and typ' =
+type typ =
   | PathT of exp
   | PrimT of string
   | TypT
@@ -22,15 +20,13 @@ and typ' =
   | LikeT of exp
   | WithT of typ * var list * exp
 
-and dec = dec' phrase
-and dec' =
+and dec =
   | EmptyD
   | SeqD of dec * dec
   | VarD of var * typ
   | InclD of typ
 
-and exp = exp' phrase
-and exp' =
+and exp =
   | VarE of var
   | PrimE of Prim.const
   | TypE of typ
@@ -42,8 +38,7 @@ and exp' =
   | AppE of var * var
   | UnpackE of var * typ
 
-and bind = bind' phrase
-and bind' =
+and bind =
   | EmptyB
   | SeqB of bind * bind
   | VarB of var * exp
@@ -61,99 +56,97 @@ let var s =
 
 let rec tupT(ts) = StrT(tupT' 1 ts)
 and tupT' n = function
-  | [] -> EmptyD@@nowhere_region
+  | [] -> EmptyD
   | t::ts ->
     let x' = "_" ^ string_of_int n in
     let d = tupT' (n + 1) ts in
-    SeqD(VarD(x'@@t.at, t)@@t.at, d)@@
-      (match d.it with EmptyD -> t.at | _ -> span[t.at; d.at])
+    SeqD(VarD(x', t), d)
 
 let rec tupE(es) = StrE(tupE' 1 es)
 and tupE' n = function
-  | [] -> EmptyB@@nowhere_region
+  | [] -> EmptyB
   | e::es ->
     let x' = "_" ^ string_of_int n in
     let b = tupE' (n + 1) es in
-    SeqB(VarB(x'@@e.at, e)@@e.at, b)@@
-      (match b.it with EmptyB -> e.at | _ -> span[e.at; b.at])
+    SeqB(VarB(x', e), b)
 
-let rec funT(ps, t, f) = (funT'(ps, t, f)).it
+let rec funT(ps, t, f) = (funT'(ps, t, f))
 and funT'(ps, t, f) =
   match ps with
   | [] -> t
   | p::ps' ->
-    FunT(fst p.it, snd p.it, funT'(ps', t, f), f.it@@f.at)@@span[p.at; f.at]
+    FunT(fst p, snd p, funT'(ps', t, f), f)
 
-let rec funE(ps, e) = (funE'(ps, e)).it
+let rec funE(ps, e) = (funE'(ps, e))
 and funE'(ps, e) =
   match ps with
   | [] -> e
-  | p::ps' -> FunE(fst p.it, snd p.it, funE'(ps', e))@@span[p.at; e.at]
+  | p::ps' -> FunE(fst p, snd p, funE'(ps', e))
 
 let letE(b, e) =
   let x' = var "let" in
-  let b2 = VarB(x'@@e.at, e)@@e.at in
-  DotE(StrE(SeqB(b, b2)@@span[b.at; e.at])@@span[b.at; e.at], x'@@e.at)
+  let b2 = VarB(x', e) in
+  DotE(StrE(SeqB(b, b2)), x')
 
-let letT(b, t) = PathT(letE(b, TypE(t)@@t.at)@@span[b.at; t.at])
-let letD(b, d) = InclD(letT(b, StrT(d)@@d.at)@@span[b.at; d.at])
-let letB(b, b') = InclB(letE(b, StrE(b')@@b'.at)@@span[b.at; b'.at])
+let letT(b, t) = PathT(letE(b, TypE(t)))
+let letD(b, d) = InclD(letT(b, StrT(d)))
+let letB(b, b') = InclB(letE(b, StrE(b')))
 
-let doE(e) = letE(VarB("_"@@e.at, e)@@e.at, tupE[]@@e.at)
-let doB(e) = letB(VarB("_"@@e.at, e)@@e.at, EmptyB@@e.at)
+let doE(e) = letE(VarB("_", e), tupE[])
+let doB(e) = letB(VarB("_", e), EmptyB)
 
 let ifE(e1, e2, e3, t) =
-  match e1.it with
+  match e1 with
   | VarE(x) -> IfE(x, e2, e3, t)
   | _ ->
     let x' = var "if" in
-    let e = IfE(x'@@e1.at, e2, e3, t)@@span[e1.at; t.at] in
-    letE(VarB(x'@@e1.at, e1)@@e1.at, e)
+    let e = IfE(x', e2, e3, t) in
+    letE(VarB(x', e1), e)
 
 let orE(e1, e2) =
-  ifE(e1, PrimE(Prim.BoolV(true))@@e1.at, e2,
-    PrimT("bool")@@span[e1.at; e2.at])
+  ifE(e1, PrimE(Prim.BoolV(true)), e2,
+    PrimT("bool"))
 let andE(e1, e2) =
-  ifE(e1, e2, PrimE(Prim.BoolV(false))@@e1.at,
-    PrimT("bool")@@span[e1.at; e2.at])
+  ifE(e1, e2, PrimE(Prim.BoolV(false)),
+    PrimT("bool"))
 
 let appE(e1, e2) =
-  match e1.it, e2.it with
+  match e1, e2 with
   | VarE(x1), VarE(x2) -> AppE(x1, x2)
   | VarE(x1), _ ->
     let x2' = var "app2" in
-    letE(VarB(x2'@@e2.at, e2)@@e2.at, AppE(x1, x2'@@e2.at)@@span[e1.at; e2.at])
+    letE(VarB(x2', e2), AppE(x1, x2'))
   | _, VarE(x2) ->
     let x1' = var "app1" in
-    letE(VarB(x1'@@e1.at, e1)@@e1.at, AppE(x1'@@e1.at, x2)@@span[e1.at; e2.at])
+    letE(VarB(x1', e1), AppE(x1', x2))
   | _, _ ->
     let x1' = var "app1" in
     let x2' = var "app2" in
-    let b1 = VarB(x1'@@e1.at, e1)@@e1.at in
-    let b2 = VarB(x2'@@e2.at, e2)@@e2.at in
-    let b = SeqB(b1, b2)@@span[e1.at; e2.at] in
-    letE(b, AppE(x1'@@e1.at, x2'@@e2.at)@@span[e1.at; e2.at])
+    let b1 = VarB(x1', e1) in
+    let b2 = VarB(x2', e2) in
+    let b = SeqB(b1, b2) in
+    letE(b, AppE(x1', x2'))
 
 let packE(e, t) =
-  match e.it with
+  match e with
   | VarE(x) -> PackE(x, t)
   | _ ->
     let x' = var "pack" in
-    letE(VarB(x'@@e.at, e)@@e.at, PackE(x'@@e.at, t)@@span[e.at; t.at])
+    letE(VarB(x', e), PackE(x', t))
 
 let unpackE(e, t) =
-  match e.it with
+  match e with
   | VarE(x) -> UnpackE(x, t)
   | _ ->
     let x' = var "pack" in
-    letE(VarB(x'@@e.at, e)@@e.at, UnpackE(x'@@e.at, t)@@span[e.at; t.at])
+    letE(VarB(x', e), UnpackE(x', t))
 
 let annotE(e, t) =
   let x' = var "annot" in
-  appE(FunE(x'@@t.at, t, VarE(x'@@t.at)@@t.at)@@span[e.at; t.at], e)
+  appE(FunE(x', t, VarE(x')), e)
 
 let sealE(e, t) =
-  unpackE(packE(e, t)@@span[e.at; t.at], t)   (* TODO: clone t! *)
+  unpackE(packE(e, t), t)   (* TODO: clone t! *)
 
 
 (* String conversion *)
@@ -163,12 +156,12 @@ let node label = function
   | args -> label ^ "(" ^ String.concat ", " args ^ ")"
 
 let label_of_eff p =
-  match p.it with
+  match p with
   | Pure -> "P"
   | Impure -> "I"
 
 let label_of_typ t =
-  match t.it with
+  match t with
   | PathT _ -> "PathT"
   | PrimT _ -> "PrimT"
   | TypT -> "TypT"
@@ -179,14 +172,14 @@ let label_of_typ t =
   | WithT _ -> "WithT"
 
 let label_of_dec d =
-  match d.it with
+  match d with
   | EmptyD -> "EmptyD"
   | SeqD _ -> "SeqD"
   | VarD _ -> "VarD"
   | InclD _ -> "InclD"
 
 let label_of_exp e =
-  match e.it with
+  match e with
   | VarE _ -> "VarE"
   | PrimE _ -> "PrimE"
   | TypE _ -> "TypT"
@@ -199,20 +192,20 @@ let label_of_exp e =
   | UnpackE _ -> "UnpackE"
 
 let label_of_bind b =
-  match b.it with
+  match b with
   | EmptyB -> "EmptyB"
   | SeqB _ -> "SeqB"
   | VarB _ -> "VarB"
   | InclB _ -> "InclB"
 
 
-let string_of_var x = x.it
+let string_of_var x = x
 
 let string_of_eff p = label_of_eff p
 
 let rec string_of_typ t =
   let node' = node (label_of_typ t) in
-  match t.it with
+  match t with
   | PathT(e) -> node' [string_of_exp e]
   | PrimT(n) -> node' ["\"" ^ n ^"\""]
   | TypT -> node' []
@@ -226,7 +219,7 @@ let rec string_of_typ t =
 
 and string_of_dec d =
   let node' = node (label_of_dec d) in
-  match d.it with
+  match d with
   | EmptyD -> node' []
   | SeqD(d1, d2) -> node' [string_of_dec d1; string_of_dec d2]
   | VarD(x, t) -> node' [string_of_var x; string_of_typ t]
@@ -234,7 +227,7 @@ and string_of_dec d =
 
 and string_of_exp e =
   let node' = node (label_of_exp e) in
-  match e.it with
+  match e with
   | VarE(x) -> node' [string_of_var x]
   | PrimE(c) -> node' [Prim.string_of_const c]
   | TypE(t) -> node' [string_of_typ t]
@@ -249,7 +242,7 @@ and string_of_exp e =
 
 and string_of_bind b =
   let node' = node (label_of_bind b) in
-  match b.it with
+  match b with
   | EmptyB -> node' []
   | SeqB(b1, b2) -> node' [string_of_bind b1; string_of_bind b2]
   | VarB(x, e) -> node' [string_of_var x; string_of_exp e]

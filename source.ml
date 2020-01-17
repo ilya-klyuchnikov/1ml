@@ -21,20 +21,7 @@ let string_of_pos pos =
 let string_of_region r =
   r.left.file ^ ":" ^ string_of_pos r.left ^ "-" ^ string_of_pos r.right
 
-let before region = {left = region.left; right = region.left}
-let after region = {left = region.right; right = region.right}
-
-let rec span regions = match regions with
-  | [] -> raise (Failure "span")
-  | r::rs -> span' r.left r.right rs
-and span' left right regions = match regions with
-  | [] -> {left = left; right = right}
-  | r::rs -> span' (min left r.left) (max right r.right) rs
-
-
 (* Phrases *)
-
-let (@@) phrase' region = {at = region; it = phrase'}
 
 (* Errors *)
 
