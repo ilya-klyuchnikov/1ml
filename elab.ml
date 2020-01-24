@@ -21,65 +21,7 @@ let verify_flag = ref false
 let verify_fomega_flag = ref true
 
 let (<<<) f x =
-  if not !verify_flag then x else
-  let at, env, s, zs, eo, label = f x in
-  let prefix = "[" ^ label ^ "] " ^ string_of_region at ^ " " in
-  (try if kind_of_extyp s <> BaseK then raise Kind with Kind ->
-    verbosest_on ();
-    print_endline (prefix ^ "malformed type: " ^ string_of_extyp s);
-    ignore (kind_of_extyp s)
-  );
-  if not (is_fresh_extyp env s) then begin
-    print_endline (prefix ^ "non-fresh type: " ^ string_of_extyp s);
-    failwith "fresh"
-  end;
-  List.iter (fun z ->
-    match !z with
-    | Det _ -> ()
-    | Undet u ->
-      if not (VarSet.for_all (fun a -> mem_typ a env) u.vars) then
-        let t = InferT(z) in
-        verbosest_on ();
-        print_endline (prefix ^ "malformed undet: " ^ string_of_typ t);
-        print_endline (prefix ^ "type environment:" ^
-          VarSet.fold (fun a s -> s ^ " " ^ a ^ ":" ^
-            string_of_kind (lookup_typ a env)) (domain_typ env) "");
-        failwith "undet"
-  ) zs;
-  if !verify_fomega_flag then begin
-    let env' = erase_env env in
-    let t' = erase_extyp s in
-    (try IL.check_typ env' t' IL.BaseK "kind" with IL.Error _ as exn ->
-      verbosest_on ();
-      print_endline (prefix ^ "malformed F type: " ^ IL.string_of_typ t');
-      print_endline (prefix ^ "unerased type: " ^ string_of_extyp s);
-        print_endline (prefix ^ "type environment:" ^
-          VarSet.fold (fun a s -> s ^ " " ^ a ^ ":" ^
-            string_of_kind (lookup_typ a env)) (domain_typ env) "");
-      raise exn
-    );
-    (match eo with
-    | None -> ()
-    | Some e ->
-      (try IL.check_exp env' e t' "type" with IL.Error _ as exn ->
-        verbosest_on ();
-        print_endline (prefix ^ "malformed F term: " ^ IL.string_of_exp e);
-        print_endline (prefix ^ "inferred F type: " ^
-          IL.string_of_typ (IL.infer_exp env' e));
-        print_endline (prefix ^ "expected F type: " ^ IL.string_of_typ t');
-        print_endline (prefix ^ "unerased type: " ^ string_of_extyp s);
-        print_endline (prefix ^ "type environment:" ^
-          VarSet.fold (fun a s -> s ^ " " ^ a ^ ":" ^
-            string_of_kind (lookup_typ a env)) (domain_typ env) "");
-        print_endline (prefix ^ "value environment:" ^
-          VarSet.fold (fun x s -> s ^ " " ^ x ^ " : " ^
-            string_of_typ (lookup_val x env)) (domain_val env) "" ^ ",");
-        raise exn
-      )
-    )
-  end;
   x
-
 
 (* Recursive types *)
 
