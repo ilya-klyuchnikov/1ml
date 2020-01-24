@@ -20,9 +20,6 @@ let quote x = "`" ^ x ^ "'"
 let verify_flag = ref false
 let verify_fomega_flag = ref true
 
-let (<<<) f x =
-  x
-
 (* Recursive types *)
 
 exception Recursive
@@ -93,7 +90,6 @@ let elab_eff env eff =
 
 let rec elab_typ env typ l =
   Trace.elab (lazy ("[elab_typ] " ^ EL.label_of_typ typ));
-  (fun (s, zs) -> typ.at, env, s, zs, None, EL.label_of_typ typ) <<<
   match typ.it with
   | EL.PathT(exp) ->
     let t, zs = elab_pathexp env exp l in
@@ -193,7 +189,6 @@ Trace.debug (lazy ("[WithT] aks12 = " ^ string_of_norm_extyp (ExT(aks12, StrT []
 
 and elab_dec env dec l =
   Trace.elab (lazy ("[elab_dec] " ^ EL.label_of_dec dec));
-  (fun (s, zs) -> dec.at, env, s, zs, None, EL.label_of_dec dec) <<<
   match dec.it with
   | EL.VarD(var, typ) ->
     let l' = var.it in
@@ -247,7 +242,6 @@ and lookup_var env var =
     error var.at ("unbound identifier " ^ quote var.it)
 
 and elab_instvar env var =
-  (fun (t, zs, e) -> var.at, env, ExT([], t), zs, Some e, "InstVE") <<<
   instantiate env (lookup_var env var) (IL.VarE(var.it))
 
 and elab_prim_typ = function
@@ -276,7 +270,6 @@ and elab_const = function
 
 and elab_exp env exp l =
   Trace.elab (lazy ("[elab_exp] " ^ EL.label_of_exp exp));
-  (fun (s, p, zs, e) -> exp.at, env, s, zs, Some e, EL.label_of_exp exp) <<<
   match exp.it with
   | EL.VarE(var) ->
 Trace.debug (lazy ("[VarE] x = " ^ var.it));
@@ -493,7 +486,6 @@ t = !b:*. [= b] -> {t : [= t4.t b], u : !a:*. [= a] => [= (a, t4.u b a)]}
 
 and elab_bind env bind l =
   Trace.elab (lazy ("[elab_bind] " ^ EL.label_of_bind bind));
-  (fun (s, p, zs, e) -> bind.at, env, s, zs, Some e, EL.label_of_bind bind) <<<
   match bind.it with
   | EL.VarB(var, exp) ->
     let l' = var.it in
@@ -549,7 +541,6 @@ Trace.debug (lazy ("[SeqB] s = " ^ string_of_norm_extyp s));
     )
 
 and elab_genexp env exp l =
-  (fun (s, p, zs, e) -> exp.at, env, s, zs, Some e, "GenE") <<<
   let level = level () in
   let a1 = freshen_var env "$" in
 Trace.debug (lazy ("[GenE] " ^ EL.string_of_exp exp));
@@ -576,7 +567,6 @@ Trace.debug (lazy ("[GenE] a1 = " ^ string_of_typ (VarT(a1, BaseK))));
   end
 
 and elab_instexp env exp l =
-  (fun (s, p, zs, e) -> exp.at, env, s, zs, Some e, "InstE") <<<
   let ExT(aks, t), p, zs1, e = elab_exp env exp l in
   let t', zs2, e' = instantiate (add_typs aks env) t e in
   ExT(aks, t'), p, zs1 @ zs2, e'
