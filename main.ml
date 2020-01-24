@@ -32,7 +32,6 @@ let parse name source =
     raise (Source.Error (region', s))
 
 let env = ref Env.empty
-let state = ref Lambda.Env.empty
 let f_state = ref []
 
 let print_sig s =
@@ -95,27 +94,7 @@ let process file source =
           ) typrow (unpack result)
         in f_state := !f_state @ f_state'
       end else begin
-        trace_phase "Compiling...";
-        let lambda = Compile.compile (Erase.erase_env !env) fprog in
-        trace_phase "Running...";
-        let value = Lambda.eval !state lambda in
-        trace_phase "Result:";
-        if !result_flag then begin
-          print_string (Lambda.string_of_value value);
-          print_string " : ";
-          print_endline (Types.string_of_norm_extyp sign)
-        end else begin
-          print_sig sign
-        end;
-        let ls = match sign with
-          | Types.ExT(_, Types.StrT(tr)) -> List.sort compare (List.map fst tr)
-          | _ -> assert false
-        in
-        let vs = match value with
-          | Lambda.TupV(vs) -> vs
-          | _ -> assert false
-        in
-        state := List.fold_right2 Lambda.Env.add ls vs !state
+        print_sig sign
       end
     end;
     env := Env.add_row typrow (Env.add_typs aks !env)
