@@ -6,7 +6,6 @@ open Source
 open Types
 open Env
 open Sub
-open Erase
 
 module EL = Syntax
 
@@ -254,17 +253,15 @@ and elab_prim_fun f =
   let t1 = elab_prim_typs (fst f.Prim.typ) in
   let t2 = elab_prim_typs (snd f.Prim.typ) in
   let t = FunT([], t1, ExT([], t2), Explicit Impure) in
-  let e = IL.PrimE(Prim.FunV f) in
   if Prim.is_poly f then
     let ta = TypT(ExT([], VarT("a", BaseK))) in
-    FunT(["a", BaseK], ta, ExT([], t), Explicit Impure),
-    IL.GenE("a", IL.BaseK, IL.LamE("_", erase_typ ta, e))
+    FunT(["a", BaseK], ta, ExT([], t), Explicit Impure)
   else
-    t, e
+    t
 
 and elab_const = function
   | Prim.FunV(f) -> elab_prim_fun f
-  | c -> PrimT(Prim.typ_of_const c), IL.PrimE(c)
+  | c -> PrimT(Prim.typ_of_const c)
 
 and elab_exp env exp l =
   Trace.elab (lazy ("[elab_exp] " ^ EL.label_of_exp exp));
@@ -275,7 +272,7 @@ Trace.debug (lazy ("[VarE] s = " ^ string_of_norm_extyp (ExT([], lookup_var env 
     ExT([], lookup_var env var), Pure, []
 
   | EL.PrimE(c) ->
-    let t, e = elab_const c in
+    let t = elab_const c in
     ExT([], t), Pure, []
 
   | EL.TypE(typ) ->
@@ -500,9 +497,6 @@ and elab_bind env bind l =
       | ExT(aks2, StrT(tr2)), p2, zs2 ->
         let tr1' = diff_row tr1 tr2 in
         let s = ExT(aks1 @ aks2, StrT(tr1' @ tr2)) in
-        let x1 = IL.rename "x1" and x2 = IL.rename "x2" in
-Trace.debug (lazy ("[SeqB] x1 : t1 = " ^ x1 ^ " : " ^ string_of_norm_typ (StrT(tr1))));
-Trace.debug (lazy ("[SeqB] x2 : t2 = " ^ x2 ^ " : " ^ string_of_norm_typ (StrT(tr2))));
 Trace.debug (lazy ("[SeqB] s = " ^ string_of_norm_extyp s));
         s, join_eff p1 p2,
         lift_warn bind.at (unexT s) env (zs1 @ zs2)  (* TODO: over-strict! *)
