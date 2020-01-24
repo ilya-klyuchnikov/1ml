@@ -2,11 +2,6 @@
  * (c) 2014 Andreas Rossberg
  *)
 
-(* Materialization *)
-
-val materialize_typ : Types.typ -> Fomega.exp
-
-
 (* Lifting *)
 
 val lift : Env.env -> Types.infer ref list -> Types.infer ref list

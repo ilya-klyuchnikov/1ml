@@ -4,7 +4,6 @@
 
 open Types
 open Env
-open Erase
 
 
 (* Errors *)
@@ -39,19 +38,6 @@ let rec string_of_error = function
   | Wrap e -> "wrapped" ^ string_of_error e
   | Left e -> ": " ^ string_of_error e
   | Right e -> " on right-hand side: " ^ string_of_error e
-
-
-(* Materialization *)
-
-let rec materialize_typ = function
-  | StrT(r) -> IL.TupE(map_row materialize_typ r)
-  | TypT(s) -> IL.LamE("_", erase_extyp s, IL.TupE[])
-  | RecT(ak, t) as t' ->
-    IL.instE(IL.genE(erase_bind [ak], materialize_typ t), [erase_typ t'])
-  | FunT(aks, t1, ExT([], t2), Explicit Pure) ->
-    IL.genE(erase_bind aks, IL.LamE("_", erase_typ t1, materialize_typ t2))
-  | _ -> assert false
-
 
 (* Lifting *)
 
