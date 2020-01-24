@@ -107,65 +107,57 @@ let rec sub_typ env t1 t2 ps =
   Trace.sub (lazy ("[sub_typ] t2 = " ^ string_of_norm_typ t2));
   Trace.sub (lazy ("[sub_typ] ps = " ^
     String.concat ", " (List.map string_of_norm_typ ps)));
-  let e1 = IL.VarE("x") in
-  let ts, zs, e =
+  let ts, zs =
     match norm_typ t1, freshen_typ env (norm_typ t2) with
     | t1, FunT(aks21, t21, ExT(aks22, t22), Implicit) ->
       assert (aks22 = []);
-      let ts, zs, f = sub_typ (add_typs aks21 env) t1 t22 ps in
-      List.map (fun t -> LamT(aks21, t)) ts, lift env zs,
-      IL.genE(erase_bind aks21, (IL.LamE("y", erase_typ t21, IL.AppE(f, e1))))
+      let ts, zs = sub_typ (add_typs aks21 env) t1 t22 ps in
+      List.map (fun t -> LamT(aks21, t)) ts, lift env zs
 
     | FunT(aks11, t11, ExT(aks12, t12), Implicit), t2 ->
       assert (aks12 = []);
       let ts1, zs1 = guess_typs (Env.domain_typ env) aks11 in
       let t1' = subst_typ (subst aks11 ts1) t12 in
-      let ts2, zs2, f = sub_typ env t1' t2 ps in
-      ts2, zs1 @ zs2,
-      IL.AppE(f, IL.AppE(IL.instE(e1, List.map erase_typ ts1),
-        materialize_typ (subst_typ (subst aks11 ts1) t11)))
+      let ts2, zs2 = sub_typ env t1' t2 ps in
+      ts2, zs1 @ zs2
 
     | TypT(s1), TypT(s2) ->
       (match s1, s2, ps with
       | ExT(aks1, t), ExT([], p1), p2::ps' when p1 = p2 ->
         if aks1 <> [] || not (!undecidable_flag || is_small_typ t) then
           raise (Sub (Mismatch (t1, t2)));
-        [t], [], e1
+        [t], []
       | _ ->
         let zs = try equal_extyp env s1 s2 with Sub e -> raise (Sub (Type e)) in
-        [], zs, e1
+        [], zs
       )
 
     | StrT(tr1), StrT(tr2) ->
-      let ts, zs, fs = sub_row env tr1 tr2 ps in
-      ts, zs,
-      IL.TupE(List.map2 (fun (l, _) f -> l, IL.AppE(f, IL.DotE(e1, l))) tr2 fs)
+      let ts, zs = sub_row env tr1 tr2 ps in
+      ts, zs
 
     | FunT(aks1, t11, s1, Explicit p1), FunT(aks2, t21, s2, Explicit p2) ->
       if p1 = Impure && p2 = Pure then raise (Sub (FunEffect(p1, p2)));
       let env' = add_typs aks2 env in
-      let ts1, zs1, f1 =
+      let ts1, zs1 =
         try sub_typ env' t21 t11 (varTs aks1) with Sub e ->
           raise (Sub (FunParam e)) in
       let ps' = List.map (fun p -> AppT(p, varTs aks2)) ps in
-      let ts2, zs2, f2 =
+      let ts2, zs2 =
         try sub_extyp env' (subst_extyp (subst aks1 ts1) s1) s2 ps'
         with Sub e -> raise (Sub (FunResult e)) in
-      List.map (fun t -> LamT(aks2, t)) ts2, lift env (zs1 @ zs2),
-      IL.genE(erase_bind aks2, (IL.LamE("y", erase_typ t21,
-        IL.AppE(f2, IL.AppE(IL.instE(e1, List.map erase_typ ts1),
-          IL.AppE(f1, IL.VarE("y")))))))
+      List.map (fun t -> LamT(aks2, t)) ts2, lift env (zs1 @ zs2)
 
     | WrapT(s1), WrapT(s2) ->
-      let _, zs, f =
+      let _, zs =
         try sub_extyp env s1 s2 [] with Sub e -> raise (Sub (Wrap e)) in
-      [], zs, IL.TupE["wrap", IL.AppE(f, IL.DotE(e1, "wrap"))]
+      [], zs
 
     | AppT(t1', ts1), AppT(t2', ts2) ->
       (try
         let zs1 = equal_typ env t1' t2' in
         let zs2 = List.concat (List.map2 (equal_typ env) ts1 ts2) in
-        [], zs1 @ zs2, e1
+        [], zs1 @ zs2
       with Sub e ->
         raise (Sub (Mismatch(t1, t2)))
       )
@@ -174,7 +166,7 @@ let rec sub_typ env t1 t2 ps =
       if l1 <> l2 then raise (Sub (Mismatch(t1, t2))) else
       let zs = try equal_typ env t1' t2' with Sub e ->
         raise (Sub (Mismatch(t1, t2))) in
-      [], zs, e1
+      [], zs
 
     | RecT(ak1, t1'), RecT(ak2, t2') ->
       if snd ak1 <> snd ak2 then
@@ -184,66 +176,66 @@ let rec sub_typ env t1 t2 ps =
             (subst_typ (subst [ak1] (varTs [ak2])) t1') t2'
         with Sub e ->
           raise (Sub (Mismatch(t1, t2)))
-      in [], lift env zs, e1
+      in [], lift env zs
 
     | InferT(z) as t1, (TypT(_) as t2) ->
       let t11, zs1 = guess_typ (Env.domain_typ env) BaseK in
       let t1' = TypT(ExT([], t11)) in
-      let ts, zs2, f = sub_typ env t1' t2 ps in
+      let ts, zs2 = sub_typ env t1' t2 ps in
       if not (resolve_typ z t1') then raise (Sub (Mismatch(t1, t2)));
-      ts, zs1 @ zs2, IL.AppE(f, e1)
+      ts, zs1 @ zs2
 
     | InferT(z) as t1, (StrT(tr2) as t2) ->
       (* TODO: row polymorphism *)
       let tzsr = map_row (fun _ -> guess_typ (Env.domain_typ env) BaseK) tr2 in
       let t1' = StrT(map_row fst tzsr) in
       let zs1 = List.concat (List.map snd (List.map snd tzsr)) in
-      let ts, zs2, f = sub_typ env t1' t2 ps in
+      let ts, zs2 = sub_typ env t1' t2 ps in
       if not (resolve_typ z t1') then raise (Sub (Mismatch(t1, t2)));
-      ts, zs1 @ zs2, IL.AppE(f, e1)
+      ts, zs1 @ zs2
 
     | InferT(z) as t1, (FunT([], t21, ExT([], t22), Explicit Impure) as t2) ->
       let t11, zs1 = guess_typ (Env.domain_typ env) BaseK in
       let t12, zs2 = guess_typ (Env.domain_typ env) BaseK in
       let t1' = FunT([], t11, ExT([], t12), Explicit Impure) in
-      let ts, zs3, f = sub_typ env t1' t2 ps in
+      let ts, zs3 = sub_typ env t1' t2 ps in
       if not (resolve_typ z t1') then raise (Sub (Mismatch(t1, t2)));
-      ts, zs1 @ zs2 @ zs3, IL.AppE(f, e1)
+      ts, zs1 @ zs2 @ zs3
 
     | InferT(z) as t1, t2 ->
       if not (resolve_typ z t2) then raise (Sub (Mismatch(t1, t2)));
-      [], [], e1
+      [], []
 
     | TypT(_) as t1, (InferT(z) as t2) ->
       let t21, zs1 = guess_typ (Env.domain_typ env) BaseK in
       let t2' = TypT(ExT([], t21)) in
-      let ts, zs2, f = sub_typ env t1 t2' ps in
+      let ts, zs2 = sub_typ env t1 t2' ps in
       if not (resolve_typ z t2') then raise (Sub (Mismatch(t1, t2)));
-      ts, zs1 @ zs2, IL.AppE(f, e1)
+      ts, zs1 @ zs2
 
     | StrT(tr1) as t1, (InferT(z) as t2) ->
       (* TODO: row polymorphism *)
       let tzsr = map_row (fun _ -> guess_typ (Env.domain_typ env) BaseK) tr1 in
       let t2' = StrT(map_row fst tzsr) in
       let zs1 = List.concat (List.map snd (List.map snd tzsr)) in
-      let ts, zs2, f = sub_typ env t1 t2' ps in
+      let ts, zs2 = sub_typ env t1 t2' ps in
       if not (resolve_typ z t2') then raise (Sub (Mismatch(t1, t2)));
-      ts, zs1 @ zs2, IL.AppE(f, e1)
+      ts, zs1 @ zs2
 
     | FunT([], t11, ExT([], t12), Explicit p) as t1, (InferT(z) as t2) ->
       let t21, zs1 = guess_typ (Env.domain_typ env) BaseK in
       let t22, zs2 = guess_typ (Env.domain_typ env) BaseK in
       let t2' = FunT([], t21, ExT([], t22), Explicit Impure) in
-      let ts, zs3, f = sub_typ env t1 t2' ps in
+      let ts, zs3 = sub_typ env t1 t2' ps in
       if not (resolve_typ z t2') then raise (Sub (Mismatch(t1, t2)));
-      ts, zs1 @ zs2 @ zs3, IL.AppE(f, e1)
+      ts, zs1 @ zs2 @ zs3
 
     | t1, (InferT(z) as t2) ->
       if not (resolve_typ z t1) then raise (Sub (Mismatch(t1, t2)));
-      [], [], e1
+      [], []
 
     | t1', t2' when unify_typ t1' t2' ->
-      [], [], e1
+      [], []
 
     | _ -> raise (Sub (Mismatch(t1, t2)))
   in
@@ -251,8 +243,7 @@ let rec sub_typ env t1 t2 ps =
   Trace.sub (lazy ("[sub_typ] done t2 = " ^ string_of_norm_typ t2));
   Trace.sub (lazy ("[sub_typ] done ts = " ^
     String.concat ", " (List.map string_of_norm_typ ts)));
-  Trace.sub (lazy ("[sub_typ] done x -> " ^ IL.string_of_exp e));
-  ts, zs, IL.LamE("x", erase_typ t1, e)
+  ts, zs
 
 and sub_extyp env s1 s2 ps =
   Trace.sub (lazy ("[sub_extyp] s1 = " ^ string_of_norm_extyp s1));
@@ -263,20 +254,16 @@ and sub_extyp env s1 s2 ps =
   | [], [] ->
     sub_typ env t1 t2 ps
   | _ ->
-    let ts, zs, f = sub_typ (add_typs aks1 env) t1 t2 (varTs aks2) in
-    [], lift env zs,
-    IL.LamE("x", erase_extyp s1,
-      IL.openE(IL.VarE("x"), List.map fst aks1, "y",
-        IL.packE(List.map erase_typ ts,
-          IL.AppE(f, IL.VarE("y")), erase_extyp s2)))
+    let ts, zs = sub_typ (add_typs aks1 env) t1 t2 (varTs aks2) in
+    [], lift env zs
 
 and sub_row env tr1 tr2 ps =
   match tr2 with
   | [] ->
-    [], [], []
+    [], []
   | (l, t2)::tr2' ->
     Trace.sub (lazy ("[sub_row] l = " ^ l));
-    let ts1, zs1, f =
+    let ts1, zs1 =
       try sub_typ env (List.assoc l tr1) t2 ps with
       | Not_found -> raise (Sub (Struct(l, Missing)))
       | Sub e -> raise (Sub (Struct(l, e)))
@@ -289,23 +276,23 @@ and sub_row env tr1 tr2 ps =
     in
     let su = List.map2 psubst (Lib.List.take (List.length ts1) ps) ts1 in
     let ps' = Lib.List.drop (List.length ts1) ps in
-    let ts2, zs2, fs = sub_row env tr1 (subst_row su tr2') ps' in
-    ts1 @ ts2, zs1 @ zs2, f::fs
+    let ts2, zs2 = sub_row env tr1 (subst_row su tr2') ps' in
+    ts1 @ ts2, zs1 @ zs2
 
 and equal_typ env t1 t2 =
   Trace.sub (lazy ("[equal_typ] t1 = " ^ string_of_norm_typ t1));
   Trace.sub (lazy ("[equal_typ] t2 = " ^ string_of_norm_typ t2));
-  let _, zs1, _ =
+  let _, zs1 =
     try sub_typ env t1 t2 [] with Sub e -> raise (Sub (Left e)) in
-  let _, zs2, _ =
+  let _, zs2 =
     try sub_typ env t2 t1 [] with Sub e -> raise (Sub (Right e)) in
   zs1 @ zs2
 
 and equal_extyp env s1 s2 =
   Trace.sub (lazy ("[equal_extyp] s1 = " ^ string_of_norm_extyp s1));
   Trace.sub (lazy ("[equal_extyp] s2 = " ^ string_of_norm_extyp s2));
-  let _, zs1, _ =
+  let _, zs1 =
     try sub_extyp env s1 s2 [] with Sub e -> raise (Sub (Left e)) in
-  let _, zs2, _ =
+  let _, zs2 =
     try sub_extyp env s2 s1 [] with Sub e -> raise (Sub (Right e)) in
   zs1 @ zs2

@@ -178,7 +178,7 @@ Trace.debug (lazy ("[WithT] ta = " ^ string_of_norm_typ ta));
     let aks12 = List.filter (fun (a, k) -> VarSet.mem a bs) aks1 in
 Trace.debug (lazy ("[WithT] aks11 = " ^ string_of_norm_extyp (ExT(aks11, StrT []))));
 Trace.debug (lazy ("[WithT] aks12 = " ^ string_of_norm_extyp (ExT(aks12, StrT []))));
-    let ts, zs3, _ =
+    let ts, zs3 =
       try sub_typ env t2 ta (varTs aks12) with Sub e -> error exp.at
         ("refinement type does not match type component: " ^ Sub.string_of_error e)
     in
@@ -308,7 +308,7 @@ Trace.debug (lazy ("[FunE] env =" ^ VarSet.fold (fun a s -> s ^ " " ^ a) (domain
       | ExT([], WrapT(s)), zs1 -> s, zs1
       | _ -> error typ.at "non-wrapped type for wrap"
     in
-    let _, zs2, f =
+    let _, zs2 =
       try sub_extyp env (ExT([], lookup_var env var)) s []
       with Sub e -> error exp.at
         ("wrapped type does not match annotation: " ^ Sub.string_of_error e)
@@ -321,7 +321,7 @@ Trace.debug (lazy ("[FunE] env =" ^ VarSet.fold (fun a s -> s ^ " " ^ a) (domain
       match s with
       | ExT([], (RecT(ak, t') as t)) -> t, ak, t'
       | _ -> error typ.at "non-recursive type for rolling" in
-    let _, zs2, f =
+    let _, zs2 =
       try sub_typ env (lookup_var env var) (subst_typ (subst [ak] [t]) t') []
       with Sub e -> error var.at ("rolled value does not match annotation") in
     ExT([], t), Pure, zs1 @ zs2
@@ -336,9 +336,9 @@ Trace.debug (lazy ("[FunE] env =" ^ VarSet.fold (fun a s -> s ^ " " ^ a) (domain
     let ExT(aks, t) as s, zs = elab_typ env typ l in
     let s1, p1, zs1 = elab_exp env exp1 l in
     let s2, p2, zs2 = elab_exp env exp2 l in
-    let _, zs3, f1 = try sub_extyp env s1 s [] with Sub e -> error exp1.at
+    let _, zs3 = try sub_extyp env s1 s [] with Sub e -> error exp1.at
       ("branch type does not match annotation: " ^ Sub.string_of_error e) in
-    let _, zs4, f2 = try sub_extyp env s2 s [] with Sub e -> error exp2.at
+    let _, zs4 = try sub_extyp env s2 s [] with Sub e -> error exp2.at
       ("branch type does not match annotation: " ^ Sub.string_of_error e) in
     s, join_eff p1 p2,
     lift_warn exp.at t (add_typs aks env) (zs0 @ zs @ zs1 @ zs2 @ zs3 @ zs4)
@@ -381,7 +381,7 @@ Trace.debug (lazy ("[AppE] tf = " ^ string_of_norm_typ tf));
     let t2 = lookup_var env var2 in
 Trace.debug (lazy ("[AppE] s1 = " ^ string_of_norm_extyp (ExT(aks1, t1))));
 Trace.debug (lazy ("[AppE] t2 = " ^ string_of_norm_typ t2));
-    let ts, zs3, f =
+    let ts, zs3 =
       try sub_typ env t2 t1 (varTs aks1) with Sub e -> error var2.at
         ("argument type does not match function: " ^ Sub.string_of_error e)
     in
@@ -406,7 +406,7 @@ Trace.debug (lazy ("[AppE] ts = " ^ String.concat ", " (List.map string_of_norm_
       | _ -> error var.at "expression is not a wrapped value" in
 Trace.debug (lazy ("[UnwrapE] s1 = " ^ string_of_norm_extyp s1));
 Trace.debug (lazy ("[UnwrapE] s2 = " ^ string_of_norm_extyp s2));
-    let _, zs3, f = try sub_extyp env s1 s2 [] with Sub e -> error exp.at
+    let _, zs3 = try sub_extyp env s1 s2 [] with Sub e -> error exp.at
       ("wrapped type does not match annotation: " ^ Sub.string_of_error e) in
     s2, Impure, lift_warn exp.at t (add_typs aks env) (zs1 @ zs2 @ zs3)
 
@@ -416,7 +416,7 @@ Trace.debug (lazy ("[UnwrapE] s2 = " ^ string_of_norm_extyp s2));
       match s with
       | ExT([], (RecT(ak, t') as t)) -> t, ak, t'
       | _ -> error typ.at "non-recursive type for rolling" in
-    let _, zs2, f = try sub_typ env (lookup_var env var) t [] with Sub e ->
+    let _, zs2 = try sub_typ env (lookup_var env var) t [] with Sub e ->
       error var.at ("unrolled value does not match annotation") in
     ExT([], subst_typ (subst [ak] [t]) t'), Pure, zs1 @ zs2
 
@@ -427,7 +427,7 @@ Trace.debug (lazy ("[UnwrapE] s2 = " ^ string_of_norm_extyp s2));
     | [] ->
       let ExT(aks2, t2), p, zs2 = elab_exp env1 exp1 l in
       if p <> Pure then error exp.at "recursive expression is not pure";
-      let _, zs3, f =
+      let _, zs3 =
         try sub_typ (add_typs aks2 env1) t2 t1 [] with Sub e -> error exp.at
           ("recursive expression does not match annotation: " ^
             Sub.string_of_error e)
@@ -438,7 +438,7 @@ Trace.debug (lazy ("[UnwrapE] s2 = " ^ string_of_norm_extyp s2));
       let t2, zs2 = elab_pathexp env1 exp1 l in
 Trace.debug (lazy ("[RecT] s1 = " ^ string_of_norm_extyp s1));
 Trace.debug (lazy ("[RecT] t2 = " ^ string_of_norm_typ t2));
-      let ts, zs3, e =
+      let ts, zs3 =
         try sub_typ env1 t2 t1 (varTs aks1) with Sub e -> error typ.at
           ("recursive type does not match annotation: " ^ Sub.string_of_error e)
       in
