@@ -6,7 +6,7 @@
 
 exception Error of string
 
-val elab : Env.env -> Syntax.exp -> Types.extyp * Types.eff * Fomega.exp
+val elab : Env.env -> Syntax.exp -> Types.extyp * Types.eff
 
 
 (* Flags *)

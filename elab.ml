@@ -642,4 +642,4 @@ and elab_instexp env exp l =
 
 let elab env exp =
   let s, p, zs, e = elab_exp env exp "" in
-  s, p, e
+  s, p

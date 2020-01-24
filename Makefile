@@ -6,7 +6,6 @@ NAME = 1ml
 MODULES = \
   lib source prim syntax parser lexer \
   fomega types iL env erase trace sub elab \
-  lambda compile \
   main
 NOMLI = syntax iL main
 PARSERS = parser

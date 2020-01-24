@@ -32,7 +32,6 @@ let parse name source =
     raise (Source.Error (region', s))
 
 let env = ref Env.empty
-let f_state = ref []
 
 let print_sig s =
   trace_phase ("Signature: ");
@@ -59,44 +58,10 @@ let process file source =
       print_endline (Syntax.string_of_exp prog)
     end;
     trace_phase "Elaborating...";
-    let sign, _, fprog = Elab.elab !env prog in
-    if !Elab.verify_flag then begin
-      trace_phase "Checking...";
-      Fomega.check_exp
-        (Erase.erase_env !env) fprog (Erase.erase_extyp sign) "Prog"
-    end;
+    let sign, _ = Elab.elab !env prog in
     let Types.ExT(aks, typ) = sign in
     let typrow = match typ with Types.StrT(row) -> row | _ -> [] in
-    if !no_run_flag then
-      print_sig sign
-    else begin
-      if !run_f_flag then begin
-        trace_phase "Running...";
-        let closed_prog =
-          List.fold_right (fun (x, t, e1) e2 -> Fomega.LetE(e1, x, e2))
-            !f_state fprog in
-        let result = Fomega.norm_exp closed_prog in
-        trace_phase "Result:";
-        if !result_flag then begin
-          print_string (Fomega.string_of_exp result);
-          print_string " : ";
-          print_endline (Types.string_of_norm_extyp sign)
-        end else begin
-          print_sig sign
-        end;
-        let rec unpack = function
-          | Fomega.PackE(_, v, _) -> unpack v
-          | Fomega.TupE(vr) -> vr
-          | _ -> assert false
-        in
-        let f_state' = List.map2 (fun (x, t) (x', v) ->
-            assert (x = x'); x, Erase.erase_typ t, v
-          ) typrow (unpack result)
-        in f_state := !f_state @ f_state'
-      end else begin
-        print_sig sign
-      end
-    end;
+    print_sig sign;
     env := Env.add_row typrow (Env.add_typs aks !env)
   with Source.Error (at, s) ->
     trace_phase "Error:";
