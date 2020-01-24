@@ -6,7 +6,7 @@
 
 val lift : Env.env -> Types.infer ref list -> Types.infer ref list
 val lift_warn :
-  Source.region -> Types.typ -> Env.env -> Types.infer ref list ->
+  Types.typ -> Env.env -> Types.infer ref list ->
     Types.infer ref list
 
 

@@ -53,7 +53,7 @@ let lift env zs =
 module IdSet = Set.Make(struct type t = int let compare = compare end)
 let warned_already = ref IdSet.empty
 
-let lift_warn at t env zs =
+let lift_warn t env zs =
   let dom = domain_typ env in
   List.filter (fun z ->
     match !z with
@@ -64,7 +64,7 @@ let lift_warn at t env zs =
         u.vars <- VarSet.inter u.vars dom;
         if not (IdSet.mem u.id !warned_already) && occurs_typ u t then (
           let names = String.concat ", " (VarSet.elements local) in
-          Source.warn at (
+          Source.warn (
             "undetermined type " ^ string_of_typ (InferT z) ^
             " local to type " ^ names ^ " in type " ^ string_of_typ t
           )

@@ -25,11 +25,11 @@ let parse name source =
   let lexbuf = Lexing.from_string source in
   lexbuf.Lexing.lex_curr_p <-
     {lexbuf.Lexing.lex_curr_p with Lexing.pos_fname = name};
-  try Parser.prog Lexer.token lexbuf with Source.Error (region, s) ->
+  try Parser.prog Lexer.token lexbuf with Source.RegionError (region, s) ->
     let region' = if region <> Source.nowhere_region then region else
       {Source.left = Lexer.convert_pos lexbuf.Lexing.lex_start_p;
        Source.right = Lexer.convert_pos lexbuf.Lexing.lex_curr_p} in
-    raise (Source.Error (region', s))
+    raise (Source.RegionError (region', s))
 
 let env = ref Env.empty
 
@@ -63,7 +63,7 @@ let process file source =
     let typrow = match typ with Types.StrT(row) -> row | _ -> [] in
     print_sig sign;
     env := Env.add_row typrow (Env.add_typs aks !env)
-  with Source.Error (at, s) ->
+  with Source.RegionError (at, s) ->
     trace_phase "Error:";
     prerr_endline (Source.string_of_region at ^ ": " ^ s);
     if not !interactive_flag then exit 1

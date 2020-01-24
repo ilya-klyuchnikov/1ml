@@ -76,18 +76,18 @@ let rec instantiate env t =
 (* Type Elaboration *)
 
 let elab_impl env impl =
-  match impl.it with
+  match impl with
   | EL.Expl -> Explicit Pure
   | EL.Impl -> Implicit
 
 let elab_eff env eff =
-  match eff.it with
+  match eff with
   | EL.Pure -> Pure
   | EL.Impure -> Impure
 
 let rec elab_typ env typ l =
   Trace.elab (lazy ("[elab_typ] " ^ EL.label_of_typ typ));
-  match typ.it with
+  match typ with
   | EL.PathT(exp) ->
     let t, zs = elab_pathexp env exp l in
     (match t with
@@ -100,13 +100,13 @@ let rec elab_typ env typ l =
       let s = ExT([], t') in
       resolve_always z (TypT(s));
       s, zs @ zs2
-    | _ -> error typ.at "expression does not denote a type"
+    | _ -> error "FIXME: Position" "expression does not denote a type"
     )
 
   | EL.PrimT(n) ->
     (match Prim.typ_of_string n with
     | Some t -> ExT([], PrimT(t)), []
-    | None -> error typ.at "unknown primitive type"
+    | None -> error "FIXME: Position" "unknown primitive type"
     )
 
   | EL.TypT ->
@@ -121,16 +121,16 @@ let rec elab_typ env typ l =
     elab_dec env dec l
 
   | EL.FunT(var, typ1, typ2, eff, impl) ->
-    let ExT(aks1, t1), zs1 = elab_typ env typ1 var.it in
+    let ExT(aks1, t1), zs1 = elab_typ env typ1 var in
     let ExT(aks2, t2), zs2 =
-      elab_typ (add_val var.it t1 (add_typs aks1 env)) typ2 l in
+      elab_typ (add_val var t1 (add_typs aks1 env)) typ2 l in
     (match elab_eff env eff, elab_impl env impl with
     | Impure, Explicit _ ->
       let aks2' =
         freshen_vars (add_typs aks1 env) (rename_vars (cut_path l) aks2) in
       let s2' = ExT(aks2', subst_typ (subst aks2 (varTs aks2')) t2) in
       let t = FunT(aks1, t1, s2', Explicit Impure) in
-      ExT([], t), lift_warn typ.at t env (zs1 @ zs2)
+      ExT([], t), lift_warn t env (zs1 @ zs2)
     | Pure, f ->
       let aks2' =
         freshen_vars (add_typs aks1 env)
@@ -139,13 +139,13 @@ let rec elab_typ env typ l =
         List.map (fun (a2', k2') -> appT(VarT(a2', k2'), varTs aks1)) aks2' in
       let t2' = subst_typ (subst aks2 tas2') t2 in
       let t = FunT(aks1, t1, ExT([], t2'), f) in
-      ExT(aks2', t), lift_warn typ.at t (add_typs aks2' env) (zs1 @ zs2)
-    | _ -> error impl.at "impure function cannot be implicit"
+      ExT(aks2', t), lift_warn t (add_typs aks2' env) (zs1 @ zs2)
+    | _ -> error "FIXME: Position" "impure function cannot be implicit"
     )
 
   | EL.WrapT(typ1) ->
     let s1, zs = elab_typ env typ1 "" in
-    ExT([], WrapT(s1)), lift_warn typ.at (WrapT(s1)) env zs
+    ExT([], WrapT(s1)), lift_warn (WrapT(s1)) env zs
 
   | EL.EqT(exp) ->
     let t, zs = elab_pathexp env exp l in
@@ -155,34 +155,34 @@ let rec elab_typ env typ l =
     let ExT(aks1, t1) as s1, zs1 = elab_typ env typ1 l in
     let s2, zs2 = elab_typ env typ2 l in
     let zs3 = try equal_extyp env s1 s2 with Sub e ->
-      error typ.at (
+      error "FIXME: Position" (
         "inconsistent types equated by `as': " ^
         Types.string_of_extyp s1 ^ " vs " ^ Types.string_of_extyp s2
       )
     in
-    s1, lift_warn typ.at t1 (add_typs aks1 env) (zs1 @ zs2 @ zs3)
+    s1, lift_warn t1 (add_typs aks1 env) (zs1 @ zs2 @ zs3)
 
   | EL.WithT(typ1, vars, exp) ->
     let t2, zs2 = elab_pathexp env exp l in
     let ExT(aks1, t1), zs1 = elab_typ env typ1 l in
-    let ls = List.map (fun var -> var.it) vars in
+    let ls = List.map (fun var -> var) vars in
     let ta = try project_typ ls t1 with Not_found ->
-      error typ.at ("path " ^ quote (String.concat "." ls) ^ " unbound") in
+      error "FIXME: Position" ("path " ^ quote (String.concat "." ls) ^ " unbound") in
     let bs = vars_typ ta in
     let aks11 = List.filter (fun (a, k) -> not (VarSet.mem a bs)) aks1 in
     let aks12 = List.filter (fun (a, k) -> VarSet.mem a bs) aks1 in
     let ts, zs3 =
-      try sub_typ env t2 ta (varTs aks12) with Sub e -> error exp.at
+      try sub_typ env t2 ta (varTs aks12) with Sub e -> error "FIXME: Position"
         ("refinement type does not match type component: " ^ Sub.string_of_error e)
     in
     ExT(aks11, subst_typ (subst aks12 ts) t1),
-    lift_warn typ.at t1 (add_typs aks11 env) (zs1 @ zs2 @ zs3)
+    lift_warn t1 (add_typs aks11 env) (zs1 @ zs2 @ zs3)
 
 and elab_dec env dec l =
   Trace.elab (lazy ("[elab_dec] " ^ EL.label_of_dec dec));
-  match dec.it with
+  match dec with
   | EL.VarD(var, typ) ->
-    let l' = var.it in
+    let l' = var in
     let ExT(aks, t), zs = elab_typ env typ (append_path l l') in
     Trace.bind (lazy ("[VarD] " ^ l ^ " : " ^
       string_of_norm_extyp (ExT(aks, t))));
@@ -193,7 +193,7 @@ and elab_dec env dec l =
     (match t with
     | StrT(tr) -> ()
     | InferT(z) -> resolve_always z (StrT[])  (* TODO: row polymorphism *)
-    | _ -> error dec.at "included type is not a structure"
+    | _ -> error "FIXME: Position" "included type is not a structure"
     ); s, zs
 
   | EL.EmptyD ->
@@ -206,7 +206,7 @@ and elab_dec env dec l =
       | ExT(aks2, StrT(tr2)), zs2 ->
         let ls = intersect_row tr1 tr2 in
         if ls <> [] then
-          error dec.at ("multiple declarations for " ^
+          error "FIXME: Position" ("multiple declarations for " ^
             String.concat ", " (List.map (fun (l, _) -> quote l) ls));
         ExT(aks1 @ aks2, StrT(tr1 @ tr2)), zs1 @ zs2
       | _ -> assert false
@@ -218,18 +218,18 @@ and elab_pathexp env exp l =
   Trace.elab (lazy ("[elab_pathexp] " ^ EL.label_of_exp exp));
   let ExT(aks, t), p, zs = elab_instexp env exp l in
   if p = Impure then
-    error exp.at "impure path expression";
+    error "FIXME: Position" "impure path expression";
   if List.exists (fun (a, k) -> contains_typ a t) aks then
-    error exp.at "local type(s) escape scope"
+    error "FIXME: Position" "local type(s) escape scope"
   else
-    follow_typ t, lift_warn exp.at t env zs
+    follow_typ t, lift_warn t env zs
 
 
 (* Expression elaboration *)
 
 and lookup_var env var =
-  try lookup_val var.it env with Not_found ->
-    error var.at ("unbound identifier " ^ quote var.it)
+  try lookup_val var env with Not_found ->
+    error "FIXME: Position" ("unbound identifier " ^ quote var)
 
 and elab_instvar env var =
   instantiate env (lookup_var env var)
@@ -258,7 +258,7 @@ and elab_const = function
 
 and elab_exp env exp l =
   Trace.elab (lazy ("[elab_exp] " ^ EL.label_of_exp exp));
-  match exp.it with
+  match exp with
   | EL.VarE(var) ->
     ExT([], lookup_var env var), Pure, []
 
@@ -274,40 +274,40 @@ and elab_exp env exp l =
     elab_bind env bind l
 
   | EL.FunE(var, typ, exp2, impl) ->
-    let ExT(aks, t), zs1 = elab_typ env typ var.it in
+    let ExT(aks, t), zs1 = elab_typ env typ var in
     let s, p, zs2 =
-      elab_exp (add_val var.it t (add_typs aks env)) exp2 "" in
+      elab_exp (add_val var t (add_typs aks env)) exp2 "" in
     assert (let ExT(aks, _) = s in p = Impure || aks = []);
     let p' =
       match p, elab_impl env impl with
       | Impure, Explicit _ -> Explicit Impure
       | Pure, f -> f
-      | _ -> error impl.at "impure function cannot be implicit" in
+      | _ -> error "FIXME: Position" "impure function cannot be implicit" in
     ExT([], FunT(aks, t, s, p')), Pure,
-    lift_warn exp.at (FunT(aks, t, s, p')) env (zs1 @ zs2)
+    lift_warn (FunT(aks, t, s, p')) env (zs1 @ zs2)
 
   | EL.WrapE(var, typ) ->
     let s, zs1 =
       match elab_typ env typ "" with
       | ExT([], WrapT(s)), zs1 -> s, zs1
-      | _ -> error typ.at "non-wrapped type for wrap"
+      | _ -> error "FIXME: Position" "non-wrapped type for wrap"
     in
     let _, zs2 =
       try sub_extyp env (ExT([], lookup_var env var)) s []
-      with Sub e -> error exp.at
+      with Sub e -> error "FIXME: Position"
         ("wrapped type does not match annotation: " ^ Sub.string_of_error e)
     in
-    ExT([], WrapT(s)), Pure, lift_warn exp.at (WrapT(s)) env (zs1 @ zs2)
+    ExT([], WrapT(s)), Pure, lift_warn (WrapT(s)) env (zs1 @ zs2)
 
   | EL.RollE(var, typ) ->
     let s, zs1 = elab_typ env typ l in
     let t, ak, t' =
       match s with
       | ExT([], (RecT(ak, t') as t)) -> t, ak, t'
-      | _ -> error typ.at "non-recursive type for rolling" in
+      | _ -> error "FIXME: Position" "non-recursive type for rolling" in
     let _, zs2 =
       try sub_typ env (lookup_var env var) (subst_typ (subst [ak] [t]) t') []
-      with Sub e -> error var.at ("rolled value does not match annotation") in
+      with Sub e -> error "FIXME: Position" ("rolled value does not match annotation") in
     ExT([], t), Pure, zs1 @ zs2
 
   | EL.IfE(var, exp1, exp2, typ) ->
@@ -316,16 +316,16 @@ and elab_exp env exp l =
       match t0 with
       | PrimT(Prim.BoolT) -> ()
       | InferT(z) -> resolve_always z (PrimT(Prim.BoolT))
-      | _ -> error var.at "condition is not Boolean" in
+      | _ -> error "FIXME: Position" "condition is not Boolean" in
     let ExT(aks, t) as s, zs = elab_typ env typ l in
     let s1, p1, zs1 = elab_exp env exp1 l in
     let s2, p2, zs2 = elab_exp env exp2 l in
-    let _, zs3 = try sub_extyp env s1 s [] with Sub e -> error exp1.at
+    let _, zs3 = try sub_extyp env s1 s [] with Sub e -> error "FIXME: Position"
       ("branch type does not match annotation: " ^ Sub.string_of_error e) in
-    let _, zs4 = try sub_extyp env s2 s [] with Sub e -> error exp2.at
+    let _, zs4 = try sub_extyp env s2 s [] with Sub e -> error "FIXME: Position"
       ("branch type does not match annotation: " ^ Sub.string_of_error e) in
     s, join_eff p1 p2,
-    lift_warn exp.at t (add_typs aks env) (zs0 @ zs @ zs1 @ zs2 @ zs3 @ zs4)
+    lift_warn t (add_typs aks env) (zs0 @ zs @ zs1 @ zs2 @ zs3 @ zs4)
 
   | EL.DotE(exp1, var) ->
     let ExT(aks, t), p, zs1 = elab_instexp env exp1 "" in
@@ -337,11 +337,11 @@ and elab_exp env exp l =
         let t, zs = guess_typ (Env.domain_typ (add_typs aks env)) BaseK in
         let tr = [l, t] in
         resolve_always z (StrT(tr)); tr, zs
-      | _ -> error exp1.at "expression is not a structure"
+      | _ -> error "FIXME: Position" "expression is not a structure"
     in
-    let t' = try List.assoc var.it tr with Not_found ->
-      error exp.at ("field " ^ quote var.it ^ " unbound in expression") in
-    let aks' = freshen_vars env (rename_vars (cut_path var.it) aks) in
+    let t' = try List.assoc var tr with Not_found ->
+      error "FIXME: Position" ("field " ^ quote var ^ " unbound in expression") in
+    let aks' = freshen_vars env (rename_vars (cut_path var) aks) in
     let s = ExT(aks', subst_typ (subst aks (varTs aks')) t') in
     List.iter (subst_infer (subst aks (varTs aks'))) (zs1 @ zs2);
     s, p, zs1 @ zs2
@@ -357,10 +357,10 @@ and elab_exp env exp l =
         let s = ExT([], t2) in
         resolve_always z (FunT([], t1, s, Explicit Impure));
         [], t1, s, Impure, zs1 @ zs2
-      | _ -> error var1.at "expression is not a function" in
+      | _ -> error var1 "expression is not a function" in
     let t2 = lookup_var env var2 in
     let ts, zs3 =
-      try sub_typ env t2 t1 (varTs aks1) with Sub e -> error var2.at
+      try sub_typ env t2 t1 (varTs aks1) with Sub e -> error "FIXME: Position"
         ("argument type does not match function: " ^ Sub.string_of_error e)
     in
     let ExT(aks2, t2) = s in
@@ -372,57 +372,57 @@ and elab_exp env exp l =
     let aks, t, s2, zs2 =
       match elab_typ env typ l with
       | ExT([], WrapT(ExT(aks, t) as s2)), zs2 -> aks, t, s2, zs2
-      | _ -> error typ.at "non-wrapped type for unwrap" in
+      | _ -> error "FIXME: Position" "non-wrapped type for unwrap" in
     let t1, zs1 = elab_instvar env var in
     let s1 =
       match t1 with
       | WrapT(s1) -> s1
       | InferT(z) ->
         if resolve_typ z (WrapT(s2)) then s2
-        else error var.at "inferred type would escape scope"
-      | _ -> error var.at "expression is not a wrapped value" in
-    let _, zs3 = try sub_extyp env s1 s2 [] with Sub e -> error exp.at
+        else error "FIXME: Position" "inferred type would escape scope"
+      | _ -> error "FIXME: Position" "expression is not a wrapped value" in
+    let _, zs3 = try sub_extyp env s1 s2 [] with Sub e -> error "FIXME: Position"
       ("wrapped type does not match annotation: " ^ Sub.string_of_error e) in
-    s2, Impure, lift_warn exp.at t (add_typs aks env) (zs1 @ zs2 @ zs3)
+    s2, Impure, lift_warn t (add_typs aks env) (zs1 @ zs2 @ zs3)
 
   | EL.UnrollE(var, typ) ->
     let s, zs1 = elab_typ env typ l in
     let t, ak, t' =
       match s with
       | ExT([], (RecT(ak, t') as t)) -> t, ak, t'
-      | _ -> error typ.at "non-recursive type for rolling" in
+      | _ -> error "FIXME: Position" "non-recursive type for rolling" in
     let _, zs2 = try sub_typ env (lookup_var env var) t [] with Sub e ->
-      error var.at ("unrolled value does not match annotation") in
+      error "FIXME: Position" ("unrolled value does not match annotation") in
     ExT([], subst_typ (subst [ak] [t]) t'), Pure, zs1 @ zs2
 
   | EL.RecE(var, typ, exp1) ->
     let ExT(aks1, t1) as s1, zs1 = elab_typ env typ l in
-    let env1 = add_val var.it t1 (add_typs aks1 env) in
+    let env1 = add_val var t1 (add_typs aks1 env) in
     (match aks1 with
     | [] ->
       let ExT(aks2, t2), p, zs2 = elab_exp env1 exp1 l in
-      if p <> Pure then error exp.at "recursive expression is not pure";
+      if p <> Pure then error "FIXME: Position" "recursive expression is not pure";
       let _, zs3 =
-        try sub_typ (add_typs aks2 env1) t2 t1 [] with Sub e -> error exp.at
+        try sub_typ (add_typs aks2 env1) t2 t1 [] with Sub e -> error "FIXME: Position"
           ("recursive expression does not match annotation: " ^
             Sub.string_of_error e)
       in
       (* TODO: syntactic restriction *)
-      s1, Pure, lift_warn exp.at t1 (add_typs aks2 env) (zs1 @ zs2 @ zs3)
+      s1, Pure, lift_warn t1 (add_typs aks2 env) (zs1 @ zs2 @ zs3)
     | _ ->
       let t2, zs2 = elab_pathexp env1 exp1 l in
       let ts, zs3 =
-        try sub_typ env1 t2 t1 (varTs aks1) with Sub e -> error typ.at
+        try sub_typ env1 t2 t1 (varTs aks1) with Sub e -> error "FIXME: Position"
           ("recursive type does not match annotation: " ^ Sub.string_of_error e)
       in
       let t3, k3 = try make_rec_typ t1 with Recursive ->
-        error typ.at "illegal type for recursive expression" in
-      let a = freshen_var env var.it in
+        error "FIXME: Position" "illegal type for recursive expression" in
+      let a = freshen_var env var in
       let tas1 = paths_typ (VarT(a, k3)) (varTs aks1) t1 in
       let t3' = subst_typ (subst aks1 tas1) (subst_typ (subst aks1 ts) t3) in
       let t4 = RecT((a, k3), t3') in
       let t = subst_typ (subst aks1 (List.map (subst_typ [a, t4]) tas1)) t1 in
-      ExT([], t), Pure, lift_warn exp.at t env (zs1 @ zs2 @ zs3)
+      ExT([], t), Pure, lift_warn t env (zs1 @ zs2 @ zs3)
     )
 
 (*
@@ -442,9 +442,9 @@ t = !b:*. [= b] -> {t : [= t4.t b], u : !a:*. [= a] => [= (a, t4.u b a)]}
 
 and elab_bind env bind l =
   Trace.elab (lazy ("[elab_bind] " ^ EL.label_of_bind bind));
-  match bind.it with
+  match bind with
   | EL.VarB(var, exp) ->
-    let l' = var.it in
+    let l' = var in
     let ExT(aks, t), p, zs = elab_genexp env exp (append_path l l') in
     Trace.bind (lazy ("[VarB] " ^ l' ^ " : " ^
       string_of_norm_extyp (ExT(aks, t))));
@@ -456,7 +456,7 @@ and elab_bind env bind l =
     (match t with
     | StrT(tr) -> ()
     | InferT(z) -> resolve_always z (StrT[])  (* TODO: row polymorphism *)
-    | _ -> error bind.at "included expression is not a structure"
+    | _ -> error "FIXME: Position" "included expression is not a structure"
     );
     s, p, zs
 
@@ -471,10 +471,10 @@ and elab_bind env bind l =
         let tr1' = diff_row tr1 tr2 in
         let s = ExT(aks1 @ aks2, StrT(tr1' @ tr2)) in
         s, join_eff p1 p2,
-        lift_warn bind.at (unexT s) env (zs1 @ zs2)  (* TODO: over-strict! *)
-      | _ -> error bind.at "internal SeqB2"
+        lift_warn (unexT s) env (zs1 @ zs2)  (* TODO: over-strict! *)
+      | _ -> error "FIXME: Position" "internal SeqB2"
       )
-    | _ -> error bind.at "internal SeqB1"
+    | _ -> error "FIXME: Position" "internal SeqB1"
     )
 
 and elab_genexp env exp l =

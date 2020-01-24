@@ -22,7 +22,7 @@ let at () =
 let ati i =
   positions_to_region (Parsing.rhs_start_pos i) (Parsing.rhs_end_pos i)
 
-let parse_error s = raise (Source.Error (Source.nowhere_region, s))
+let parse_error s = raise (Source.RegionError (Source.nowhere_region, s))
 %}
 
 %token TRUE FALSE HOLE PRIMITIVE
@@ -54,15 +54,15 @@ label :
   | sym
     { $1 }
   | NUM
-    { index($1)@@at() }
+    { index($1) }
 ;
 sym :
   | SYM
-    { $1@@at() }
+    { $1 }
 ;
 name :
   | NAME
-    { $1@@at() }
+    { $1 }
   | LPAR sym RPAR
     { $2 }
 ;
@@ -77,31 +77,31 @@ head :
   | name
     { $1 }
   | HOLE
-    { "_"@@at() }
+    { "_" }
 ;
 annparam :
   | LPAR head COLON typ RPAR
-    { let b, _ = varP($2) in (b, $4, Expl@@ati 3)@@at() }
+    { let b, _ = varP($2) in (b, $4, Expl) }
   | LPAR TYPE head typparamlist RPAR
     { let b, _ = varP($3) in
-      (b, funT($4, TypT@@ati 2, Pure@@ati 2)@@span[ati 2; ati 4],
-        Expl@@ati 2)@@at() }
+      (b, funT($4, TypT, Pure),
+        Expl) }
   | TICK LPAR head COLON TYPE RPAR
-    { let b, _ = varP($3) in (b, TypT@@ati 5, Impl@@ati 1)@@at() }
+    { let b, _ = varP($3) in (b, TypT, Impl) }
   | TICK LPAR TYPE head RPAR
-    { let b, _ = varP($4) in (b, TypT@@ati 3, Impl@@ati 1)@@at() }
+    { let b, _ = varP($4) in (b, TypT, Impl) }
   | TICK head
-    { let b, _ = varP($2) in (b, TypT@@at(), Impl@@ati 1)@@at() }
+    { let b, _ = varP($2) in (b, TypT, Impl) }
 ;
 param :
   | atpat
-    { let b, t = (defaultP $1).it in (b, t, Expl@@at())@@at() }
+    { let b, t = (defaultP $1) in (b, t, Expl) }
   | TICK LPAR head COLON TYPE RPAR
-    { let b, _ = varP($3) in (b, TypT@@ati 5, Impl@@ati 1)@@at() }
+    { let b, _ = varP($3) in (b, TypT, Impl) }
   | TICK LPAR TYPE head RPAR
-    { let b, _ = varP($4) in (b, TypT@@ati 3, Impl@@ati 1)@@at() }
+    { let b, _ = varP($4) in (b, TypT, Impl) }
   | TICK head
-    { let b, _ = varP($2) in (b, TypT@@at(), Impl@@ati 1)@@at() }
+    { let b, _ = varP($2) in (b, TypT, Impl) }
 ;
 paramlist :
   |
@@ -112,62 +112,62 @@ paramlist :
 typparamlist :
   | paramlist
     { List.map (fun p ->
-        match p.it with
-        | (b, {it = HoleT; at}, i) -> (b, TypT@@at, i)@@p.at
+        match p with
+        | (b, HoleT, i) -> (b, TypT, i)
         | _ -> p
       ) $1 }
 ;
 arrow :
   | ARROW
-    { Impure@@at() }
+    { Impure }
   | DARROW
-    { Pure@@at() }
+    { Pure }
 ;
 
 attyp :
   | PRIMITIVE TEXT
-    { PrimT($2)@@at() }
+    { PrimT($2) }
   | TYPE
-    { TypT@@at() }
+    { TypT }
   | HOLE
-    { HoleT@@at() }
+    { HoleT }
   | LBRACE dec RBRACE
-    { StrT($2)@@at() }
+    { StrT($2) }
   | LPAR RPAR
-    { StrT(EmptyD@@at())@@at() }
+    { StrT(EmptyD) }
   | LPAR typlist RPAR
-    { match $2 with [t] -> t | ts -> tupT(ts)@@at() }
+    { match $2 with [t] -> t | ts -> tupT(ts) }
   | LPAR EQUAL exp RPAR
-    { EqT($3)@@at() }
+    { EqT($3) }
 ;
 apptyp :
   | attyp
     { $1 }
   | pathexp
-    { PathT($1)@@at() }
+    { PathT($1) }
 ;
 withtyp :
   | apptyp
     { $1 }
   | withtyp WITH LPAR namelist typparamlist EQUAL exp RPAR
-    { WithT($1, $4, funE($5, $7)@@span[ati 5; ati 7])@@at() }
+    { WithT($1, $4, funE($5, $7)) }
   | withtyp WITH LPAR TYPE namelist typparamlist EQUAL typ RPAR
-    { WithT($1, $5, funE($6, TypE($8)@@ati 8)@@span[ati 6; ati 8])@@at() }
+    { WithT($1, $5, funE($6, TypE($8))) }
 ;
 typ :
   | withtyp
     { $1 }
   | annparam arrow typ
-    { funT([$1], $3, $2)@@at() }
+    { funT([$1], $3, $2) }
   | withtyp arrow typ
-    { let b, _ = varP("_"@@ati 1) in
-      funT([(b, $1, Expl@@ati 2)@@ati 1], $3, $2)@@at() }
+    { let b, _ = varP("_") in
+      funT([(b, $1, Expl)], $3, $2) }
   | WRAP typ
-    { WrapT($2)@@at() }
+    { WrapT($2) }
   | REC atpat DARROW typ
-    { recT(defaultTP $2, $4)@@at() }
+    { recT(defaultTP $2, $4) }
   | LET bind IN typ
-    { letT($2, $4)@@at() }
+    { letT($2, $4) }
 ;
 typlist :
   | typ
@@ -178,19 +178,19 @@ typlist :
 
 atdec :
   | head typparamlist COLON typ
-    { VarD($1, funT($2, $4, Pure@@ati 2)@@span[ati 2; ati 4])@@at() }
+    { VarD($1, funT($2, $4, Pure)) }
   | TYPE head typparamlist
-    { VarD($2, funT($3, TypT@@ati 1, Pure@@ati 3)@@at())@@at() }
+    { VarD($2, funT($3, TypT, Pure)) }
   | head typparamlist EQUAL exp
-    { VarD($1, funT($2, EqT($4)@@ati 4, Pure@@ati 3)@@span[ati 2; ati 4])
-        @@at() }
+    { VarD($1, funT($2, EqT($4), Pure))
+         }
   | TYPE head typparamlist EQUAL typ
-    { VarD($2, funT($3, EqT(TypE($5)@@ati 5)@@ati 5, Pure@@ati 4)@@at())
-        @@at() }
+    { VarD($2, funT($3, EqT(TypE($5)), Pure))
+         }
   | INCLUDE typ
-    { InclD($2)@@at() }
+    { InclD($2) }
   | LOCAL bind IN dec END
-    { letD($2, $4)@@at() }
+    { letD($2, $4) }
 /*
   | LPAR dec RPAR
     { $2 }
@@ -198,42 +198,42 @@ atdec :
 ;
 dec :
   |
-    { EmptyD@@at() }
+    { EmptyD }
   | atdec
     { $1 }
   | atdec SEMI dec
-    { SeqD($1, $3)@@at() }
+    { SeqD($1, $3) }
 ;
 
 atpathexp :
   | name
-    { VarE($1)@@at() }
+    { VarE($1) }
   | HOLE
-    { TypE(HoleT@@at())@@at() }
+    { TypE(HoleT) }
 ;
 apppathexp :
   | atpathexp
     { $1 }
   | apppathexp atexp
-    { appE($1, $2)@@at() }
+    { appE($1, $2) }
   | apppathexp DOT label
-    { DotE($1, $3)@@at() }
+    { DotE($1, $3) }
   | AT attyp atexp
-    { rollE($3, $2)@@at() }
+    { rollE($3, $2) }
   | AT name atexp
-    { rollE($3, PathT(VarE($2)@@ati 2)@@ati 2)@@at() }
+    { rollE($3, PathT(VarE($2))) }
   | apppathexp DOT AT attyp
-    { unrollE($1, $4)@@at() }
+    { unrollE($1, $4) }
   | apppathexp DOT AT name
-    { unrollE($1, PathT(VarE($4)@@ati 4)@@ati 4)@@at() }
+    { unrollE($1, PathT(VarE($4))) }
 ;
 infpathexp :
   | apppathexp
     { $1 }
   | sym apppathexp
-    { appE(VarE($1)@@ati(1), $2)@@at() }
+    { appE(VarE($1), $2) }
   | infpathexp sym apppathexp
-    { appE(VarE($2)@@ati(2), tupE[$1; $3]@@at())@@at() }
+    { appE(VarE($2), tupE[$1; $3]) }
 ;
 pathexp :
   | infpathexp
@@ -242,87 +242,87 @@ pathexp :
 
 atexp :
   | name
-    { VarE($1)@@at() }
+    { VarE($1) }
   | HOLE
-    { TypE(HoleT@@at())@@at() }
+    { TypE(HoleT) }
   | PRIMITIVE TEXT
     { match Prim.fun_of_string $2 with
-      | Some f -> PrimE(Prim.FunV f)@@at()
+      | Some f -> PrimE(Prim.FunV f)
       | None -> parse_error ("unknown primitive \"" ^ $2 ^ "\"") }
   | NUM
-    { PrimE(Prim.IntV($1))@@at() }
+    { PrimE(Prim.IntV($1)) }
   | CHAR
-    { PrimE(Prim.CharV($1))@@at() }
+    { PrimE(Prim.CharV($1)) }
   | TEXT
-    { PrimE(Prim.TextV($1))@@at() }
+    { PrimE(Prim.TextV($1)) }
   | LBRACE bind RBRACE
-    { StrE($2)@@at() }
+    { StrE($2) }
   | LPAR RPAR
-    { StrE(EmptyB@@at())@@at() }
+    { StrE(EmptyB) }
   | LPAR explist RPAR
-    { match $2 with [e] -> e | es -> tupE(es)@@at() }
+    { match $2 with [e] -> e | es -> tupE(es) }
   | LPAR expsemilist RPAR
-    { seqE($2)@@at() }
+    { seqE($2) }
   | LPAR DOT label RPAR
-    { dotopE($3)@@at() }
+    { dotopE($3) }
 ;
 appexp :
   | atexp
     { $1 }
   | appexp atexp
-    { appE($1, $2)@@at() }
+    { appE($1, $2) }
   | appexp DOT label
-    { DotE($1, $3)@@at() }
+    { DotE($1, $3) }
   | AT attyp atexp
-    { rollE($3, $2)@@at() }
+    { rollE($3, $2) }
   | AT name atexp
-    { rollE($3, PathT(VarE($2)@@ati 2)@@ati 2)@@at() }
+    { rollE($3, PathT(VarE($2))) }
   | appexp DOT AT attyp
-    { unrollE($1, $4)@@at() }
+    { unrollE($1, $4) }
   | appexp DOT AT name
-    { unrollE($1, PathT(VarE($4)@@ati 4)@@ati 4)@@at() }
+    { unrollE($1, PathT(VarE($4))) }
 ;
 infexp :
   | appexp
     { $1 }
   | sym appexp
-    { appE(VarE($1)@@ati(1), $2)@@at() }
+    { appE(VarE($1), $2) }
   | infexp sym appexp
-    { appE(VarE($2)@@ati(2), tupE[$1; $3]@@at())@@at() }
+    { appE(VarE($2), tupE[$1; $3]) }
   | infexp OR appexp
-    { orE($1, $3)@@at() }
+    { orE($1, $3) }
   | infexp AND appexp
-    { andE($1, $3)@@at() }
+    { andE($1, $3) }
   | DO appexp
-    { doE($2)@@at() }
+    { doE($2) }
 ;
 annexp :
   | infexp
     { $1 }
   | TYPE typ
-    { TypE($2)@@at() }
+    { TypE($2) }
   | annexp COLON typ
-    { annotE($1, $3)@@at() }
+    { annotE($1, $3) }
   | annexp SEAL typ
-    { sealE($1, $3)@@at() }
+    { sealE($1, $3) }
   | WRAP infexp COLON typ
-    { wrapE($2, $4)@@at() }
+    { wrapE($2, $4) }
   | UNWRAP infexp COLON typ
-    { unwrapE($2, $4)@@at() }
+    { unwrapE($2, $4) }
 ;
 exp :
   | annexp
     { $1 }
   | FUN param paramlist DARROW exp
-    { funE($2::$3, $5)@@at() }
+    { funE($2::$3, $5) }
   | IF exp THEN exp ELSE infexp COLON typ
-    { ifE($2, $4, $6, $8)@@at() }
+    { ifE($2, $4, $6, $8) }
   | IF exp THEN exp ELSE infexp
-    { ifE($2, $4, $6, HoleT@@ati 1)@@at() }
+    { ifE($2, $4, $6, HoleT) }
   | LET bind IN exp
-    { letE($2, $4)@@at() }
+    { letE($2, $4) }
   | REC atpat DARROW exp
-    { recE(defaultP $2, $4)@@at() }
+    { recE(defaultP $2, $4) }
 ;
 explist :
   | exp
@@ -341,25 +341,23 @@ expsemilist :
 
 atbind :
   | head param paramlist EQUAL exp
-    { VarB($1, funE($2::$3, $5)@@span[ati 2; ati 5])@@at() }
+    { VarB($1, funE($2::$3, $5)) }
   | head param paramlist COLON typ EQUAL exp
-    { VarB($1, funE($2::$3, annotE($7, $5)@@span[ati 5; ati 7])
-        @@span[ati 2; ati 7])@@at() }
+    { VarB($1, funE($2::$3, annotE($7, $5))) }
   | head paramlist SEAL typ EQUAL exp
-    { VarB($1, funE($2, sealE($6, $4)@@span[ati 4; ati 6])
-        @@span[ati 2; ati 6])@@at() }
+    { VarB($1, funE($2, sealE($6, $4))) }
   | pat EQUAL exp
-    { patB($1, $3)@@at() }
+    { patB($1, $3) }
   | name
-    { VarB($1, VarE($1.it@@at())@@at())@@at() }
+    { VarB($1, VarE($1)) }
   | TYPE head typparamlist EQUAL typ
-    { VarB($2, funE($3, TypE($5)@@ati 5)@@span[ati 3; ati 5])@@at() }
+    { VarB($2, funE($3, TypE($5))) }
   | INCLUDE exp
-    { InclB($2)@@at() }
+    { InclB($2) }
   | LOCAL bind IN bind END
-    { letB($2, $4)@@at() }
+    { letB($2, $4) }
   | DO exp
-    { doB($2)@@at() }
+    { doB($2) }
 /*
   | LPAR bind RPAR
     { $2 }
@@ -367,47 +365,47 @@ atbind :
 ;
 bind :
   |
-    { EmptyB@@at() }
+    { EmptyB }
   | atbind
     { $1 }
   | atbind SEMI bind
-    { SeqB($1, $3)@@at() }
+    { SeqB($1, $3) }
 ;
 
 atpat :
   | head
-    { if $1.it = "_" then holeP@@at() else varP($1)@@at() }
+    { if $1 = "_" then holeP else varP($1) }
   | LBRACE decon RBRACE
-    { strP($2)@@at() }
+    { strP($2) }
   | LPAR RPAR
-    { strP([])@@at() }
+    { strP([]) }
   | LPAR patlist RPAR
-    { match $2 with [p] -> p | ps -> tupP(ps)@@at() }
+    { match $2 with [p] -> p | ps -> tupP(ps) }
   | LPAR TYPE name typparamlist RPAR
-    { annotP(varP($3.it@@ati 3)@@ati 3,
-        funT($4, TypT@@ati 2, Pure@@ati 2)@@at())@@at() }
+    { annotP(varP($3),
+        funT($4, TypT, Pure)) }
 ;
 apppat :
   | atpat
     { $1 }
   | AT attyp atpat
-    { rollP($3, $2)@@at() }
+    { rollP($3, $2) }
   | AT name atpat
-    { rollP($3, PathT(VarE($2)@@ati 2)@@ati 2)@@at() }
+    { rollP($3, PathT(VarE($2))) }
 ;
 annpat :
   | apppat
     { $1 }
   | annpat COLON typ
-    { annotP($1, $3)@@at() }
+    { annotP($1, $3) }
   | WRAP apppat COLON typ
-    { wrapP($2, $4)@@at() }
+    { wrapP($2, $4) }
 ;
 pat :
   | annpat
     { $1 }
   | annpat AS annpat
-    { asP($1, $3)@@at() }
+    { asP($1, $3) }
 ;
 patlist :
   | pat
@@ -418,16 +416,16 @@ patlist :
 
 atdecon :
   | name EQUAL pat
-    { [($1, $3)@@at()] }
+    { [($1, $3)] }
   | name
-    { [($1, varP($1.it@@at())@@at())@@at()] }
+    { [($1, varP($1))] }
   | name COLON typ EQUAL pat
-    { [($1, annotP($5, $3)@@span[ati 2; ati 5])@@at()] }
+    { [($1, annotP($5, $3))] }
   | name COLON typ
-    { [($1, annotP(varP($1.it@@ati 1)@@ati 1, $3)@@at())@@at()] }
+    { [($1, annotP(varP($1), $3))] }
   | TYPE name typparamlist
-    { [($2, annotP(varP($2.it@@ati 2)@@ati 2,
-        funT($3, TypT@@ati 1, Pure@@ati 1)@@at())@@at())@@at()] }
+    { [($2, annotP(varP($2),
+        funT($3, TypT, Pure)))] }
 /*
   | LPAR decon RPAR
     { $2 }
@@ -444,8 +442,7 @@ decon :
 
 prog :
   | bind EOF
-    { StrE($1)@@at() }
+    { StrE($1) }
 ;
 
 %%
-  
