@@ -50,8 +50,7 @@ and infer =
 and undet =
   { id : int;
     mutable level : level;
-    mutable vars : varset;
-    mutable il : Fomega.typ lazy_t option
+    mutable vars : varset
   }
 
 
@@ -176,7 +175,7 @@ val verbose_vars_flag : bool ref
 val verbose_levels_flag : bool ref
 
 val verbosest_on : unit -> unit
-  
+
 val string_of_eff_sort : eff -> string
 val string_of_typ_sort : typ -> string
 

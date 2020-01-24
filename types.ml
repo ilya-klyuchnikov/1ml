@@ -47,8 +47,7 @@ and infer =
 and undet =
   { id : int;
     mutable level : level;
-    mutable vars : varset;
-    mutable il : Fomega.typ lazy_t option
+    mutable vars : varset
   }
 
 
@@ -417,7 +416,7 @@ let stamp () =
 let rec guess_typ vars = function
   | BaseK ->
     let i = stamp () in
-    let z = ref (Undet{id = i; level = i; vars = vars; il = None}) in
+    let z = ref (Undet{id = i; level = i; vars = vars}) in
     InferT(z), [z]
   | ProdK(kr) ->
     let tzsr = map_row (guess_typ vars) kr in
@@ -464,7 +463,7 @@ let update_infer z t =
   assert (kind_of_typ t = BaseK);
   let u = match !z with Undet u -> u | Det _ -> assert false in
   z := Det t;
-  (match u.il with None -> () | Some t' -> ignore (Lazy.force t'))
+  ()
 
 let close_typ z t =
   assert (VarSet.cardinal (vars_typ t) = 1);
@@ -518,7 +517,7 @@ let rec unify_typ t1 t2 =
   | TypT(ExT([], t1')), TypT(ExT([], t2')) ->
     unify_typ t1' t2'
   | _, _ -> false
-    
+
 and unify_row r1 r2 =
   (* TODO: reorder; row unification *)
   try List.for_all2 (fun (l1, t1) (l2, t2) -> l1 = l2 && unify_typ t1 t2) r1 r2
@@ -537,7 +536,7 @@ let verbosest_on () =
   verbose_paths_flag := true;
   verbose_vars_flag := true;
   verbose_levels_flag := true
-  
+
 let string_of_eff_sort = function
   | Impure -> "impure"
   | Pure -> "pure"
