@@ -36,6 +36,7 @@ let state = ref Lambda.Env.empty
 let f_state = ref []
 
 let print_sig s =
+  trace_phase ("Signature: ");
   match s with
   | Types.ExT(aks, Types.StrT(tr)) ->
     List.iter (fun (a, k) ->
