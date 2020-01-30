@@ -416,16 +416,16 @@ patlist :
 
 atdecon :
   | name EQUAL pat
-    { [($1, $3)] }
+    { ($1, $3) }
   | name
-    { [($1, varP($1))] }
+    { ($1, varP($1)) }
   | name COLON typ EQUAL pat
-    { [($1, annotP($5, $3))] }
+    { ($1, annotP($5, $3)) }
   | name COLON typ
-    { [($1, annotP(varP($1), $3))] }
+    { ($1, annotP(varP($1), $3)) }
   | TYPE name typparamlist
-    { [($2, annotP(varP($2),
-        funT($3, TypT, Pure)))] }
+    { ($2, annotP(varP($2),
+        funT($3, TypT, Pure))) }
 /*
   | LPAR decon RPAR
     { $2 }
@@ -435,9 +435,9 @@ decon :
   |
     { [] }
   | atdecon
-    { $1 }
+    { $1 :: [] }
   | atdecon SEMI decon
-    { $1 @ $3 }
+    { $1 :: $3 }
 ;
 
 prog :
